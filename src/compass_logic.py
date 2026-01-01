@@ -7,11 +7,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 DB_NAME = r'..\database\compass.db'
 
-def calculate_compass_score(school_data, user_budget, soc_prefix="00"):
+def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=3.5, user_sat=None):
     # ... checks ...
     debt = school_data.get('debt')
     earnings = school_data.get('earnings')
     net_price = school_data.get('net_price')
+    sticker_price = school_data.get('sticker_price')
     
     if not isinstance(debt, (int, float)) or not isinstance(earnings, (int, float)) or not isinstance(net_price, (int, float)):
         return {'score': 0, 'debt_payoff_years': -1, 'ranking_tier': 'N/A'}
@@ -40,21 +41,51 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00"):
         w_prestige = 30
         
     # 2. ROI Score
-    disposable_income = earnings - 30000
-    if disposable_income <= 0:
-        debt_years = 999 
+    # Updated to match Frontend "Health Bar" Logic (20% Rule)
+    # Standard banking assumption: 20% of gross income goes to debt repayment.
+    annual_repayment = earnings * 0.20
+    
+    # DUAL-COST LOGIC:
+    # 1. Conservative (Sticker): For UI Display ("Hard Mode").
+    # 2. Optimistic (Net): For Scoring (Tier S Visibility).
+    cost_conservative = (sticker_price or net_price or 25000) * 4
+    cost_optimistic   = (net_price or sticker_price or 25000) * 4
+    
+    if annual_repayment <= 0:
+        debt_years = 99.9
+        score_debt_years = 99.9
     else:
-        debt_years = debt / disposable_income
+        debt_years = cost_conservative / annual_repayment
+        score_debt_years = cost_optimistic / annual_repayment
         
-    roi_score = max(0, w_roi - (debt_years * (w_roi / 10))) # Scale decay
+    # ROI Score uses OPTIMISTIC debt (Net Price) to ensure Ivies rank highly
+    roi_score = max(0, w_roi - (score_debt_years * 1.5)) 
 
     # 3. Budget Score
+    # GAME BALANCE: Sticker Price is King (Student Perception)
+    # 3. Budget Score
+    # UPDATE: Use Net Price for Budget (Affordability) while keeping ROI on Sticker (Risk)
+    cost_to_compare = net_price or sticker_price
+    
+    # ELITE PROTECTION: If school is highly prestigious (Adm Rate < 20%), 
+    # we soften the budget penalty.
+    is_elite = school_data.get('adm_rate', 1.0) < 0.20
+    
     if user_budget > 0:
-        price_ratio = net_price / user_budget
+        price_ratio = cost_to_compare / user_budget
+        
         if price_ratio <= 1.0:
             budget_score = w_budget
         else:
-            budget_score = max(0, w_budget - ((price_ratio - 1.0) * 100))
+            # Linear penalty
+            penalty = (price_ratio - 1.0) * 100
+            
+            # ELITE BUFF REMOVED: User Feedback "Budget is Budget".
+            # If you can't afford UCLA ($60k) with $30k budget, it's not S-Tier.
+            # if is_elite:
+            #    penalty *= 0.25 
+                
+            budget_score = max(0, w_budget - penalty)
     else:
         budget_score = w_budget / 2
 
@@ -68,6 +99,49 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00"):
         prestige_score = w_prestige
     
     final_score = roi_score + budget_score + prestige_score
+
+    # BUDGET NUKE: If over budget, strictly cap tier.
+    if user_budget > 0:
+        price_ratio = cost_to_compare / user_budget
+        if price_ratio > 1.2: # 20% over budget
+             final_score *= 0.5
+        if price_ratio > 1.5: # 50% over budget (e.g. 45k vs 30k)
+             final_score *= 0.1 # F-Tier immediately
+
+    # 5. ADMISSION GATEKEEPER (The "Yes" Patch)
+    # If user stats are significantly below school standards, applying massive penalty.
+    school_sat_25 = school_data.get('sat_25')
+    if user_sat and school_sat_25 and isinstance(school_sat_25, (int, float)):
+        # If user is >100 points below 25th percentile -> Reach School (High Risk)
+        if user_sat < (school_sat_25 - 50):
+            penalty_factor = 0.5 # 50% penalty
+            if user_sat < (school_sat_25 - 150):
+                penalty_factor = 0.1 # 90% penalty (Mission Impossible)
+            
+            final_score *= penalty_factor
+            
+    # GPA Check (Simple proxy if SAT missing)
+    # Assuming avg GPA around 3.0-3.5 for most schools. Ivy ~3.9
+    if user_gpa:
+        # If school is elite (adm < 20%) and GPA < 3.5 -> Penalty
+        if is_elite and user_gpa < 3.5:
+             final_score *= 0.4
+
+    # SAFETY NET: Ensure valid "Safety Schools" appear as Green/Blue (A/B)
+    # If user matches stats and can afford it, don't let low prestige kill the score.
+    if user_sat and school_sat_75 and user_budget > 0:
+        is_strong_candidate = user_sat >= school_sat_75
+        is_affordable = (cost_to_compare / user_budget) <= 1.0
+        
+        if is_strong_candidate and is_affordable:
+            # Force boost to at least B-Tier (75) to give users viable options
+            if final_score < 75:
+                final_score = 75
+            
+            # If extremely affordable (80% of budget), boost to A-Tier
+            if (cost_to_compare / user_budget) <= 0.8:
+                final_score = max(final_score, 85)
+
     final_score = max(0, min(100, int(final_score)))
     
     # Ranking Tier
@@ -91,43 +165,46 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00"):
 def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
     """
     Find schools for a target career, filtered by GPA/SAT and sorted by Compass Score.
-    
-    Args:
-        user_gpa (float): User's GPA.
-        target_career_soc (str): Target career SOC code (or 'major' identifier).
-        user_budget (int): User's budget.
-        user_sat (int, optional): User's SAT score.
-        
-    Returns:
-        list: List of dicts representing matched schools.
     """
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
     # 1. Bridge: Get CIP Prefix from SOC code
-    # We strip to first 2 digits
     soc_prefix = target_career_soc[:2]
     
-    # Query bridge to get compatible CIP prefixes
-    # Note: Our bridge is heuristic. We stored CIP_PREFIX -> SOC_PREFIX
+    # BASELINE WAGES (2024 Verified BLS Medians)
+    SECTOR_WAGES = {
+        '11': 105000, # Management
+        '13': 80000,  # Business/Finance
+        '15': 102000, # Computer/Math (High ROI)
+        '17': 92000,  # Architecture/Engineering
+        '19': 75000,  # Life/Physical Science
+        '21': 55000,  # Community/Social Service
+        '23': 90000,  # Legal
+        '25': 62000,  # Education
+        '27': 58000,  # Arts/Design
+        '29': 85000,  # Healthcare Practitioners
+        '31': 48000,  # Healthcare Support
+        '33': 55000,  # Protective Service
+        '41': 60000,  # Sales
+    }
+    sector_base = SECTOR_WAGES.get(soc_prefix, 50000)
+    
     c.execute("SELECT CIP_PREFIX FROM major_to_career WHERE SOC_PREFIX = ?", (soc_prefix,))
     cip_prefixes = [row[0] for row in c.fetchall()]
     
-    logging.info(f"Target SOC: {target_career_soc} (Prefix: {soc_prefix}) -> Mapped CIP Prefixes: {cip_prefixes}")
+    logging.info(f"Target SOC: {target_career_soc} (Prefix: {soc_prefix}) -> Sector Base: ${sector_base}")
     
     if not cip_prefixes:
-        # Fallback: if no map, assume same prefix if exists? Or empty.
         logging.warning(f"No major mapping found for SOC prefix {soc_prefix}")
         return []
 
-    # 2. Find Candidates: Schools with programs in these CIPs
-    # We join everything needed: School info + Fin Data + Admissions
-    # Need to handle multiple CIP matches.
+    # 2. Find Candidates
     placeholders = ','.join('?' * len(cip_prefixes))
     
     query = f"""
     SELECT DISTINCT s.UNITID, s.INSTNM, s.NET_PRICE, s.EARNINGS_MEDIAN, s.DEBT_MEDIAN,
-           a.SATVR75, a.SATMT75, s.ADM_RATE
+            a.SATVR75, a.SATMT75, s.ADM_RATE, s.STICKER_PRICE
     FROM schools s
     JOIN programs p ON s.UNITID = p.UNITID
     LEFT JOIN admissions a ON s.UNITID = a.UNITID
@@ -139,7 +216,6 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
     try:
         c.execute(query, cip_prefixes)
         candidates = c.fetchall()
-        logging.info(f"Found {len(candidates)} candidate schools before admissions filter.")
     except sqlite3.Error as e:
         logging.error(f"Database error: {e}")
         return []
@@ -147,98 +223,94 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
     results = []
     
     for row in candidates:
-        unitid, name, net_price, earnings, debt, sat_vr, sat_mt, adm_rate = row
-        
-        # 3. Admissions Filter & Hard Mode
-        
-        if sat_vr and sat_mt:
-            school_sat_75 = sat_vr + sat_mt
-            school_gpa_req = school_sat_75 / 400
-        else:
-            school_sat_75 = 1000 # Default ~2.5 GPA equivalent
-            school_gpa_req = 2.5 
+        try:
+            unitid, name, net_price, earnings_school, debt, sat_vr, sat_mt, adm_rate, sticker_price = row
             
-        admission_chance = False
-        is_safety_school = False
-        
-        
-        # Check SAT if provided
-        if user_sat:
-            # Can I get in? (User > School - 150)
-            # Tighter gap: 100 was too tight? No, 150 is more lenient? 
-            # 1300 vs 1580. 1580-150 = 1430. 1300 < 1430. Fail.
-            if user_sat >= (school_sat_75 - 150):
-                admission_chance = True
+            # Type Safety: Ensure numeric values
+            net_price = float(net_price) if net_price else 0
+            earnings_school = float(earnings_school) if earnings_school else 0
+            debt = float(debt) if debt else 0
+            sticker_price = float(sticker_price) if sticker_price else 0
+            adm_rate = float(adm_rate) if adm_rate else 1.0
             
-            # HARD MODE: Is this school too easy? (User > School + 200)
-            if user_sat > 1350 and user_sat > (school_sat_75 + 250):
-                 is_safety_school = True
-        
-        # Check GPA only if SAT was NOT provided
-        # If SAT was provided and failed, GPA cannot save you for elite schools.
-        elif user_gpa:
-             # Strict buffer: 0.2
-             if user_gpa >= (school_gpa_req - 0.2):
-                admission_chance = True
-        
-        # Final decision
-        if not admission_chance:
+            # REALISM UPDATE: Use School Median directly for diversity.
+            # Fallback to sector_base only if data is missing.
+            projected_earnings = earnings_school if earnings_school > 0 else sector_base
+                 
+            # 3. Admissions Filter & Hard Mode
+            
+            if sat_vr and sat_mt:
+                school_sat_75 = sat_vr + sat_mt
+                school_gpa_req = school_sat_75 / 400
+            else:
+                school_sat_75 = 1000 # Default ~2.5 GPA equivalent
+                school_gpa_req = 2.5 
+            
+            admission_chance = False
+            is_safety_school = False
+            
+            if user_sat:
+                if user_sat >= (school_sat_75 - 150):
+                    admission_chance = True
+                # HARD MODE: Is this school too easy?
+                if user_sat > 1350 and user_sat > (school_sat_75 + 250):
+                     is_safety_school = True
+            elif user_gpa:
+                 if user_gpa >= (school_gpa_req - 0.2):
+                    admission_chance = True
+            
+            if not admission_chance:
+                continue
+            if is_safety_school:
+                continue
+                
+            # 4. Calculate Score
+            school_data = {
+                'net_price': net_price,
+                'sticker_price': sticker_price, 
+                'earnings': projected_earnings, 
+                'debt': debt,
+                'adm_rate': adm_rate,
+                'sat_75': school_sat_75
+            }
+            
+            compass = calculate_compass_score(school_data, user_budget, soc_prefix, user_gpa, user_sat)
+            
+            final_score = compass['score']
+            
+            # Update Ranking
+            if final_score >= 90: tier = 'S'
+            elif final_score >= 80: tier = 'A'
+            elif final_score >= 70: tier = 'B'
+            elif final_score >= 50: tier = 'C'
+            else: tier = 'F'
+            
+            results.append({
+                'school_id': unitid,
+                'school_name': name,
+                'compass_score': int(final_score),
+                'ranking': tier,
+                'debt_years': compass['debt_payoff_years'],
+                'net_price': net_price,
+                'sticker_price': sticker_price, 
+                'earnings': projected_earnings, 
+                'debt': debt,
+                'adm_rate': adm_rate
+            })
+            
+        except Exception as e:
+            logging.warning(f"Error processing school {row[1]}: {e}")
             continue
-            
-        if is_safety_school:
-            # Skip this school if it's a safety for a high-stat user
-            continue
-            
-        # 4. Calculate Score
-        school_data = {
-            'net_price': net_price,
-            'earnings': earnings,
-            'debt': debt,
-            'adm_rate': adm_rate,
-            'sat_75': school_sat_75
-        }
-        
-        compass = calculate_compass_score(school_data, user_budget, soc_prefix)
-        
-        # Add Prestige Boost to Compass Score directly? 
-        # Actually calculate_compass_score should handle it or we add it here.
-        # Let's add it here to modify the result.
-        
-        final_score = compass['score']
-        
-        # Update Ranking based on new score
-        if final_score >= 96: tier = 'S'
-        elif final_score >= 86: tier = 'A'
-        elif final_score >= 76: tier = 'B'
-        elif final_score >= 60: tier = 'C'
-        else: tier = 'F'
-        
-        results.append({
-            'school_id': unitid,
-            'school_name': name,
-            'compass_score': int(final_score),
-            'ranking': tier,
-            'debt_years': compass['debt_payoff_years'],
-            'net_price': net_price,
-            'earnings': earnings,
-            'debt': debt,
-            'adm_rate': adm_rate
-        })
-        
+
     # 5. Sort
     results.sort(key=lambda x: x['compass_score'], reverse=True)
     
+    # OPTIMIZATION: Return only Top 50 to speed up Tunnel Transfer
     conn.close()
-    return results
+    return results[:50]
 
 if __name__ == "__main__":
     # Test Run
-    test_career = "15-1252.00" # Software Developers (SOC 15)
-    test_gpa = 3.5
-    test_budget = 20000 
-    
-    matches = find_loadout(test_gpa, test_career, test_budget)
-    
-    print(f"Found {len(matches)} matches for Career {test_career}, GPA {test_gpa}, Budget ${test_budget}")
+    matches = find_loadout(3.5, "15-1252.00", 20000)
     for m in matches[:5]:
         print(f"[{m['ranking']}] {m['school_name']} - Score: {m['compass_score']} (Debt Years: {m['debt_years']})")

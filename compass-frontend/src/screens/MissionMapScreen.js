@@ -3,10 +3,12 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, ActivityIndi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 import { BlurView } from 'expo-blur';
-import { X, Shield, DollarSign, Clock } from 'lucide-react-native';
+import { X, Shield, DollarSign, Clock, Swords, CheckCircle, Circle } from 'lucide-react-native';
 import axios from 'axios';
-
-const API_URL = 'http://localhost:8000';
+import { API_URL } from '../config';
+import PvPModal from '../components/PvPModal';
+import HoloTutorial from '../components/HoloTutorial';
+import { ChevronLeft } from 'lucide-react-native';
 
 const TierBadge = ({ tier }) => {
     const getColor = () => {
@@ -26,59 +28,56 @@ const TierBadge = ({ tier }) => {
     );
 };
 
-export default function MissionMapScreen({ navigation, route }) {
-    const { userProfile } = route.params;
+// Add props
+export default function MissionMapScreen({ navigation, route, showTutorial, closeTutorial, saveMission, showPvPTutorial, closePvPTutorial }) {
+    const userProfile = route?.params?.userProfile;
+
+    if (!userProfile) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: theme.colors.textDim, marginBottom: 20 }}>NO MISSION DATA FOUND.</Text>
+                <TouchableOpacity style={{ padding: 10, borderWidth: 1, borderColor: theme.colors.primary }} onPress={() => navigation && navigation.navigate('Lobby')}>
+                    <Text style={{ color: theme.colors.primary }}>RETURN TO BASE</Text>
+                </TouchableOpacity>
+            </SafeAreaView>
+        );
+    }
     const [loading, setLoading] = useState(true);
     const [missions, setMissions] = useState([]);
+
+    // PvP Selection State
+    const [selectedSchools, setSelectedSchools] = useState([]);
+    const [pvpVisible, setPvpVisible] = useState(false);
+
+    // Mission Detail State
     const [selectedMission, setSelectedMission] = useState(null);
     const [accepting, setAccepting] = useState(false);
-
-    const handleAccept = async () => {
-        console.log("Accept Mission Button Pressed!"); // DEBUG LOG
-        setAccepting(true);
-        try {
-            console.log(`Sending request to ${API_URL}/api/test...`);
-            await axios.get(`${API_URL}/api/test`, { timeout: 60000 });
-
-            // Success
-            // Alert.alert("Mission Accepted", `Deployment to ${selectedMission.school_name} confirmed.`);
-            navigation.navigate('MissionBrief', { schoolName: selectedMission.school_name });
-            setSelectedMission(null);
-        } catch (error) {
-            console.error("Accept Mission Error:", error);
-            if (error.code === 'ECONNABORTED') {
-                Alert.alert("Server Timeout", "The server took too long to respond.");
-            } else {
-                Alert.alert("Error", "Server connection failed. Is the backend running?");
-            }
-        } finally {
-            setAccepting(false);
-        }
-    };
 
     useEffect(() => {
         fetchMissions();
     }, []);
 
     const fetchMissions = async () => {
-        console.log(`Fetching missions from ${API_URL}/api/score with profile:`, userProfile);
+        console.log(`Fetching missions from ${API_URL}/api/score`);
         try {
             const payload = {
                 gpa: userProfile.gpa,
                 sat: userProfile.sat,
-                major: userProfile.targetCareer, // Map targetCareer to 'major'
+                major: userProfile.targetCareer,
                 budget: userProfile.budget
             };
 
-            const response = await axios.post(`${API_URL}/api/score`, payload);
-            console.log("Missions received:", response.data.length);
+            const response = await axios.post(
+                `${API_URL}/api/score`,
+                payload,
+                { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 5000 } // 5s Timeout
+            );
             setMissions(response.data);
         } catch (error) {
             console.error("Fetch Missions Error:", error);
-            Alert.alert("Connection Error", "Could not reach Command Server. Running in Offline Simulation Mode.");
+            // Alert.alert("Connection Error", "Could not reach Command Server. Running in Offline Simulation Mode.");
+            // Silent fallback is better for UX if tunnel is flaky
 
-            // Fallback data for demo if API fails/offline
-            // User Note: This is why you see "Duplicate Results" -> The API is failing!
             setMissions([
                 { school_id: 1, school_name: 'Simulated University (OFFLINE)', compass_score: 95, ranking: 'S', debt_years: 1.2, earnings: 75000, debt: 15000, net_price: 18000 },
                 { school_id: 2, school_name: 'Tech State (OFFLINE)', compass_score: 82, ranking: 'A', debt_years: 2.1, earnings: 68000, debt: 22000, net_price: 21000 },
@@ -89,25 +88,88 @@ export default function MissionMapScreen({ navigation, route }) {
         }
     };
 
-    const renderItem = ({ item }) => (
-        <TouchableOpacity style={styles.card} onPress={() => setSelectedMission(item)}>
-            <View style={styles.cardLeft}>
-                <TierBadge tier={item.ranking} />
-                <View style={styles.schoolInfo}>
-                    <Text style={styles.schoolName} numberOfLines={1}>{item.school_name}</Text>
-                    <Text style={styles.score}>COMPASS SCORE: {item.compass_score}</Text>
+    const handleAccept = async () => {
+        setAccepting(true);
+        try {
+            await axios.get(`${API_URL}/api/test`, {
+                timeout: 60000,
+                headers: { "Bypass-Tunnel-Reminder": "true" }
+            });
+            navigation.navigate('CareerSelectionScreen', {
+                school: selectedMission,
+                profile: userProfile
+            });
+            setSelectedMission(null);
+        } catch (error) {
+            console.error("Accept Mission Error:", error);
+            Alert.alert("Error", "Server connection failed.");
+        } finally {
+            setAccepting(false);
+        }
+    };
+
+    // Toggle Selection for PvP
+    const toggleSelection = (school) => {
+        const isSelected = selectedSchools.find(s => s.school_id === school.school_id);
+        if (isSelected) {
+            setSelectedSchools(prev => prev.filter(s => s.school_id !== school.school_id));
+        } else {
+            if (selectedSchools.length < 2) {
+                setSelectedSchools(prev => [...prev, school]);
+            } else {
+                Alert.alert("Target Limit", "Only 2 targets can be compared at once.");
+            }
+        }
+    };
+
+    const renderItem = ({ item }) => {
+        const isSelected = selectedSchools.find(s => s.school_id === item.school_id);
+        return (
+            <TouchableOpacity
+                style={[styles.card, isSelected && styles.selectedCard]}
+                onPress={() => setSelectedMission(item)}
+                onLongPress={() => toggleSelection(item)}
+            >
+                {/* Checkbox */}
+                <TouchableOpacity
+                    style={styles.checkBox}
+                    onPress={() => toggleSelection(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    {isSelected ? (
+                        <CheckCircle color={theme.colors.tacticalGreen} size={24} fill="rgba(0,255,153,0.1)" />
+                    ) : (
+                        <Circle color={theme.colors.glassBorder} size={24} />
+                    )}
+                </TouchableOpacity>
+
+                <View style={styles.cardLeft}>
+                    <TierBadge tier={item.ranking} />
+                    <View style={styles.schoolInfo}>
+                        <Text style={styles.schoolName} numberOfLines={1}>{item.school_name}</Text>
+                        <Text style={styles.score}>TACTICAL SCORE: {item.compass_score}</Text>
+                    </View>
                 </View>
-            </View>
-            <View style={styles.cardRight}>
-                <Text style={styles.detailText}>ROI: {item.debt_years}y</Text>
-            </View>
-        </TouchableOpacity>
-    );
+                <View style={styles.cardRight}>
+                    <Text style={styles.detailText}>COOLDOWN: {item.debt_years}y</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.headerTitle}>MISSION MAP</Text>
-            <Text style={styles.headerSubtitle}>Targets Acquired: {missions.length}</Text>
+            <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="MAP" />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: 10 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8, marginRight: 8, borderWidth: 1, borderColor: theme.colors.glassBorder, borderRadius: 8 }}>
+                    <ChevronLeft color={theme.colors.text} size={24} />
+                </TouchableOpacity>
+                <View>
+                    <Text style={styles.headerTitle}>MISSION MAP</Text>
+                    <Text style={styles.headerSubtitle}>Targets Acquired: {missions.length}</Text>
+                </View>
+            </View>
 
             {loading ? (
                 <View style={styles.center}>
@@ -123,12 +185,33 @@ export default function MissionMapScreen({ navigation, route }) {
                 />
             )}
 
+            {/* PVP FAB */}
+            {selectedSchools.length === 2 && (
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => setPvpVisible(true)}
+                >
+                    <Swords color="#000" size={24} />
+                    <Text style={styles.fabText}>INITIATE COMPARISON</Text>
+                </TouchableOpacity>
+            )}
+
+            <PvPModal
+                visible={pvpVisible}
+                onClose={() => setPvpVisible(false)}
+                school1={selectedSchools[0]}
+                school2={selectedSchools[1]}
+                saveMission={saveMission}
+                userProfile={userProfile}
+            />
+
+            {/* Mission Detail Modal */}
             {selectedMission && (
                 <Modal transparent={true} animationType="fade" visible={!!selectedMission}>
                     <BlurView intensity={90} tint="dark" style={styles.modalContainer}>
                         <View style={styles.modalContent}>
                             <View style={styles.modalHeader}>
-                                <Text style={styles.damageTitle}>DAMAGE REPORT</Text>
+                                <Text style={styles.damageTitle}>MISSION PREVIEW</Text>
                                 <TouchableOpacity onPress={() => setSelectedMission(null)}>
                                     <X color={theme.colors.text} />
                                 </TouchableOpacity>
@@ -140,19 +223,22 @@ export default function MissionMapScreen({ navigation, route }) {
                                 <View style={styles.statBlock}>
                                     <DollarSign color={theme.colors.danger} size={20} />
                                     <Text style={styles.statLabel}>COST TO ACQUIRE</Text>
-                                    <Text style={styles.statValue}>${selectedMission.net_price?.toLocaleString() || 'N/A'}</Text>
+                                    <Text style={styles.statValue}>
+                                        ${selectedMission.sticker_price?.toLocaleString() || selectedMission.net_price?.toLocaleString() || 'N/A'}
+                                    </Text>
                                 </View>
-
                                 <View style={styles.statBlock}>
                                     <Shield color={theme.colors.primary} size={20} />
-                                    <Text style={styles.statLabel}>LOOT DROP/YR</Text>
-                                    <Text style={styles.statValue}>${selectedMission.earnings?.toLocaleString() || 'N/A'}</Text>
+                                    <Text style={styles.statLabel}>LOOT DROP</Text>
+                                    <Text style={styles.statValue}>
+                                        ${selectedMission.earnings?.toLocaleString() || 'N/A'}
+                                    </Text>
                                 </View>
                             </View>
 
                             <View style={styles.cooldownBlock}>
                                 <Clock color={theme.colors.secondary} size={20} />
-                                <Text style={styles.statLabel}>COOLDOWN (PAYOFF)</Text>
+                                <Text style={styles.statLabel}>EST. COOLDOWN</Text>
                                 <Text style={[styles.statValue, { color: theme.colors.secondary }]}>
                                     {selectedMission.debt_years} YEARS
                                 </Text>
@@ -176,9 +262,6 @@ export default function MissionMapScreen({ navigation, route }) {
         </SafeAreaView>
     );
 }
-// Helper Styles appended in replace_file tool if needed or relying on existing disabledButton style? 
-// Existing styles has disabledButton: opacity: 0.5. Perfect.
-
 
 const styles = StyleSheet.create({
     container: {
@@ -205,7 +288,7 @@ const styles = StyleSheet.create({
     },
     list: {
         gap: theme.spacing.s,
-        paddingBottom: theme.spacing.xl,
+        paddingBottom: 80, // Space for FAB
     },
     card: {
         flexDirection: 'row',
@@ -216,6 +299,13 @@ const styles = StyleSheet.create({
         borderRadius: theme.borderRadius.m,
         alignItems: 'center',
         justifyContent: 'space-between',
+    },
+    selectedCard: {
+        borderColor: theme.colors.tacticalGreen,
+        backgroundColor: 'rgba(0, 255, 153, 0.05)',
+    },
+    checkBox: {
+        marginRight: theme.spacing.m,
     },
     cardLeft: {
         flexDirection: 'row',
@@ -259,6 +349,34 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing.m,
         letterSpacing: 2,
     },
+
+    // FAB
+    fab: {
+        position: 'absolute',
+        bottom: 30,
+        alignSelf: 'center',
+        backgroundColor: theme.colors.tacticalGreen,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 30,
+        gap: 10,
+        elevation: 10,
+        shadowColor: theme.colors.tacticalGreen,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        zIndex: 100,
+    },
+    fabText: {
+        color: '#000',
+        fontFamily: theme.fonts.heading,
+        fontWeight: 'bold',
+        fontSize: 14,
+        letterSpacing: 1,
+    },
+
     // Modal
     modalContainer: {
         flex: 1,

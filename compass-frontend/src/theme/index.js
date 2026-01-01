@@ -2,13 +2,17 @@ export const theme = {
     colors: {
         background: '#0B0E14',
         primary: '#00FF99', // Neon Green (S-Tier)
-        danger: '#FF0055',  // Red (F-Tier)
+        danger: '#FF4444',
         secondary: '#00D1FF', // Cyan (A-Tier / Info)
-        warning: '#FFD600', // Yellow (B-Tier)
+        warning: '#FFCC00',
+        info: '#0088FF',
         text: '#FFFFFF',
         textDim: 'rgba(255, 255, 255, 0.6)',
         glass: 'rgba(255, 255, 255, 0.05)',
         glassBorder: 'rgba(255, 255, 255, 0.1)',
+        // Tactical Theme
+        tacticalGreen: '#00FF99', // Neon Green
+        tacticalBlack: '#0d0d0d', // Deep Black
     },
     fonts: {
         heading: 'System', // Fallback from Inter-Bold

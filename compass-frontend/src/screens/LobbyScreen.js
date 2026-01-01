@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Briefcase, Heart, Zap, PenTool, ChevronRight } from 'lucide-react-native';
+import HoloTutorial from '../components/HoloTutorial';
 // import axios from 'axios'; // Not used in this screen actually
 
 // Mock API URL - Replace with your IP if running on separate device
@@ -16,7 +17,7 @@ const CLASSES = [
     { id: 'creative', name: 'Creative', icon: PenTool, desc: 'Architects of Imagination', soc_codes: '27-0000' },
 ];
 
-export default function LobbyScreen({ navigation }) {
+export default function LobbyScreen({ navigation, showTutorial, closeTutorial }) {
     const [selectedClass, setSelectedClass] = useState(null);
 
     const handleSelect = (cls) => {
@@ -32,8 +33,14 @@ export default function LobbyScreen({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
+            <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="LOBBY" />
             <View style={styles.header}>
-                <Text style={styles.title}>CHOOSE YOUR CLASS</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1} adjustsFontSizeToFit>CHOOSE YOUR CLASS</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(0, 255, 153, 0.1)', borderWidth: 1, borderColor: theme.colors.tacticalGreen, borderRadius: 4 }}>
+                        <Text style={{ color: theme.colors.tacticalGreen, fontFamily: theme.colors.mono, fontSize: 12, fontWeight: 'bold' }}>ID CARD</Text>
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.subtitle}>Select your operational specialty.</Text>
             </View>
 
