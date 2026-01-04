@@ -29,7 +29,7 @@ const TierBadge = ({ tier }) => {
 };
 
 // Add props
-export default function MissionMapScreen({ navigation, route, showTutorial, closeTutorial, saveMission, showPvPTutorial, closePvPTutorial }) {
+export default function MissionMapScreen({ navigation, route, showTutorial, closeTutorial, saveMission, showPvPTutorial, closePvPTutorial, showPreviewTutorial, closePreviewTutorial }) {
     const userProfile = route?.params?.userProfile;
 
     if (!userProfile) {
@@ -70,7 +70,7 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
             const response = await axios.post(
                 `${API_URL}/api/score`,
                 payload,
-                { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 5000 } // 5s Timeout
+                { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 15000 } // Increased to 15s for slow tunnels
             );
             setMissions(response.data);
         } catch (error) {
@@ -90,22 +90,16 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
 
     const handleAccept = async () => {
         setAccepting(true);
-        try {
-            await axios.get(`${API_URL}/api/test`, {
-                timeout: 60000,
-                headers: { "Bypass-Tunnel-Reminder": "true" }
-            });
+        // Removed blocking API check to prevent timeout errors
+        // Proceed directly to simulation/career selection
+        setTimeout(() => {
             navigation.navigate('CareerSelectionScreen', {
                 school: selectedMission,
                 profile: userProfile
             });
             setSelectedMission(null);
-        } catch (error) {
-            console.error("Accept Mission Error:", error);
-            Alert.alert("Error", "Server connection failed.");
-        } finally {
             setAccepting(false);
-        }
+        }, 500);
     };
 
     // Toggle Selection for PvP
@@ -151,9 +145,9 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
                     </View>
                 </View>
                 <View style={styles.cardRight}>
-                    <Text style={styles.detailText}>COOLDOWN: {item.debt_years}y</Text>
+                    {/* Add visual indicator or leave blank if cooldown removed */}
                 </View>
-            </TouchableOpacity>
+            </TouchableOpacity >
         );
     };
 
@@ -203,21 +197,33 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
                 school2={selectedSchools[1]}
                 saveMission={saveMission}
                 userProfile={userProfile}
+                showTutorial={showPvPTutorial}
+                closeTutorial={closePvPTutorial}
             />
 
-            {/* Mission Detail Modal */}
+            {/* Mission Preview Tutorial */}
+            <HoloTutorial
+                visible={showPreviewTutorial && !!selectedMission}
+                onClose={closePreviewTutorial}
+                scenario="MISSION_PREVIEW"
+            />
+
+            {/* Mission Detail Overlay (Replaced Modal with Absolute View to allow Tutorial Overlay) */}
             {selectedMission && (
-                <Modal transparent={true} animationType="fade" visible={!!selectedMission}>
+                <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
                     <BlurView intensity={90} tint="dark" style={styles.modalContainer}>
                         <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <Text style={styles.damageTitle}>MISSION PREVIEW</Text>
-                                <TouchableOpacity onPress={() => setSelectedMission(null)}>
-                                    <X color={theme.colors.text} />
+                            <View style={[styles.modalHeader, { paddingRight: 10 }]}>
+                                <Text style={[styles.damageTitle, { flex: 1 }]}>{selectedMission.school_name}</Text>
+                                <TouchableOpacity
+                                    onPress={() => setSelectedMission(null)}
+                                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                                >
+                                    <X color={theme.colors.text} size={28} />
                                 </TouchableOpacity>
                             </View>
 
-                            <Text style={styles.modalSchool}>{selectedMission.school_name}</Text>
+                            <Text style={styles.modalSchool}>{selectedMission.ranking} - TIER</Text>
 
                             <View style={styles.statRow}>
                                 <View style={styles.statBlock}>
@@ -257,7 +263,7 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
                             </TouchableOpacity>
                         </View>
                     </BlurView>
-                </Modal>
+                </View>
             )}
         </SafeAreaView>
     );

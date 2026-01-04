@@ -2,16 +2,27 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { theme } from '../theme';
-import { Shield, Target, Clock, Zap, Heart, Briefcase, PenTool } from 'lucide-react-native';
+import { Shield, Target, Clock, Zap, Heart, Briefcase, PenTool, Swords } from 'lucide-react-native';
 
 const SCENARIOS = {
     'LOBBY': [
         { title: "LOBBY", desc: "Welcome to the Operations Center. Select a CLASS based on your academic strengths.", icon: Zap },
-        { title: "ENGINEER", desc: "Includes: Computer Science, Engineering, Math, Physics. High Firepower (Salary).", icon: Zap },
-        { title: "HEALER", desc: "Includes: Biology, Nursing, Pre-Med, Health Sciences. High Job Security.", icon: Heart },
-        { title: "LEADER", desc: "Includes: Business, Economics, Political Science. High Risk, High Reward.", icon: Briefcase },
-        { title: "CREATIVE", desc: "Includes: Arts, English, History, Psychology. Variable Outcomes.", icon: PenTool },
+    ],
+    'ENGINEER': [
+        { title: "ENGINEER CLASS", desc: "Includes: Computer Science, Engineering, Math, Physics. High Firepower (Salary).", icon: Zap },
+    ],
+    'HEALER': [
+        { title: "HEALER CLASS", desc: "Includes: Biology, Nursing, Pre-Med, Health Sciences. High Job Security.", icon: Heart },
+    ],
+    'LEADER': [
+        { title: "LEADER CLASS", desc: "Includes: Business, Economics, Political Science. High Risk, High Reward.", icon: Briefcase },
+    ],
+    'CREATIVE': [
+        { title: "CREATIVE CLASS", desc: "Includes: Arts, English, History, Psychology. Variable Outcomes.", icon: PenTool },
+    ],
+    'ID_CARD': [
         { title: "ID CARD", desc: "Access your Dossier to view saved intel, FAQs, and system settings.", icon: Shield },
+        { title: "FIELD MANUAL", desc: "Tactical Glossary and Mission FAQs.", icon: Briefcase },
     ],
     'STATS': [
         { title: "CALIBRATION", desc: "Enter your stats to calculate mission viability.", icon: Zap },
@@ -25,23 +36,37 @@ const SCENARIOS = {
     ],
     'MAP': [
         { title: "MISSION MAP", desc: "Select a University Target to infiltrate.", icon: Target },
-        { title: "COST TO ACQUIRE", desc: "Total Investment required to secure the degree.", icon: Shield },
-        { title: "LOOT DROP", desc: "Projected annual earnings upon mission completion.", icon: Zap },
+        { title: "PVP COMPARISON", desc: "Long Press or Check the box on two targets to compare them.", icon: Swords },
         { title: "TACTICAL SCORE", desc: "Proprietary Matrix rating target viability.", icon: Shield },
         { title: "RANKING", desc: "S-Tier (Elite) to F-Tier (High Debt). Choose wisely.", icon: Zap },
+    ],
+    'FIELD_MANUAL': [
+        { title: "FIELD MANUAL", desc: "Access the Tactical Glossary to decode mission terminology.", icon: Shield },
+        { title: "DEFINITIONS", desc: "Learn what terms like 'Boss HP' and 'Firepower' mean.", icon: Briefcase },
+    ],
+    'MISSION_PREVIEW': [
+        { title: "MISSION PREVIEW", desc: "Intel gathered on selected target.", icon: Target },
+        { title: "COST TO ACQUIRE", desc: "Total Investment required to secure the degree.", icon: Shield },
+        { title: "LOOT DROP", desc: "Projected Annual Salary (Average Wage) for selected major.", icon: Zap },
+        { title: "ESTIMATED COOLDOWN", desc: "Time until Financial Freedom based on Standard Repayment Models.", icon: Clock },
     ],
     'PVP': [
         { title: "COMBAT SIM", desc: "Compare two targets side-by-side.", icon: Zap },
         { title: "ADVANTAGE", desc: "Green text indicates a superior stat.", icon: Shield },
+        { title: "SHIELDS", desc: "Scholarships (Merit-based aid).", icon: Shield },
+        { title: "SQUAD SUPPORT", desc: "Parental support or savings.", icon: Heart },
+        { title: "SIDE OPS", desc: "Part-time labor income.", icon: Briefcase },
     ],
     'DAMAGE_REPORT': [
         { title: "DAMAGE REPORT", desc: "Final Mission Analysis before deployment.", icon: Zap },
         { title: "BOSS HP", desc: "Total Sticker Price (Tuition + Room + Board).", icon: Target },
+        { title: "MARKET OUTLOOK", desc: "Projected Growth Rate for this career field.", icon: Zap },
+        { title: "LOOT", desc: "Average Annual Salary for the selected career.", icon: Zap },
         { title: "SHIELDS", desc: "Scholarships (Merit-based aid) that reduce Sticker Price.", icon: Shield },
         { title: "SQUAD SUPPORT", desc: "Parental support or savings applied to the mission.", icon: Heart },
         { title: "SIDE OPS", desc: "Part-time labor income used to offset costs.", icon: Briefcase },
-        { title: "REMAINING HP", desc: "The Debt you will graduate with.", icon: Clock },
-        { title: "COOLDOWN", desc: "Time until Financial Freedom based on Standard Repayment Models.", icon: Clock },
+        { title: "REMAINING HP", desc: "The remaining debt balance you must defeat.", icon: Clock },
+        { title: "COOLDOWN", desc: "Time to reduce Remaining HP to zero.", icon: Clock },
         { title: "ROI", desc: "Performance Rating. Does the Loot justify the Cost?", icon: Zap },
     ],
     'MISSION_LOG': [
@@ -51,6 +76,8 @@ const SCENARIOS = {
     ],
     'PROFILE': [
         { title: "DOSSIER", desc: "Review your saved intel and mission logs here.", icon: Shield },
+        { title: "FIELD MANUAL", desc: "Access the Tactical Glossary to decode mission terminology.", icon: Briefcase },
+        { title: "SAVED MISSIONS", desc: "Tap any saved target to revisit its intel.", icon: Target },
         { title: "SYSTEMS", desc: "Reset tutorials or purge data from this terminal.", icon: Zap },
     ]
 };

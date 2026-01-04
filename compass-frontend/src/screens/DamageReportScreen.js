@@ -53,33 +53,61 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
         }).start();
     }, []);
 
+    // Offline SOC Data Map (Fallback)
+    const OFFLINE_BOSS_DATA = {
+        // Engineer
+        "15-1252": { title: "Software Developer", annual_mean_wage: 132270, projected_growth: 25.0 },
+        "17-2051": { title: "Civil Engineer", annual_mean_wage: 95890, projected_growth: 5.0 },
+        "17-2141": { title: "Mechanical Engineer", annual_mean_wage: 100820, projected_growth: 10.0 },
+        "17-2071": { title: "Electrical Engineer", annual_mean_wage: 106950, projected_growth: 5.0 },
+        "17-2011": { title: "Aerospace Engineer", annual_mean_wage: 130720, projected_growth: 6.0 },
+        // Healer
+        "29-1141": { title: "Registered Nurse", annual_mean_wage: 86070, projected_growth: 6.0 },
+        "29-1021": { title: "Dentist", annual_mean_wage: 191760, projected_growth: 4.0 },
+        "29-1171": { title: "Nurse Practitioner", annual_mean_wage: 126260, projected_growth: 45.0 },
+        // Leader
+        "11-1011": { title: "Chief Executive", annual_mean_wage: 258900, projected_growth: -8.0 },
+        "11-2021": { title: "Marketing Manager", annual_mean_wage: 157620, projected_growth: 6.0 },
+        "23-1011": { title: "Lawyer", annual_mean_wage: 145760, projected_growth: 8.0 },
+        // Creative
+        "27-1011": { title: "Art Director", annual_mean_wage: 105130, projected_growth: 6.0 },
+        "27-1024": { title: "Graphic Designer", annual_mean_wage: 57990, projected_growth: 3.0 }
+    };
+
     const fetchBossData = async () => {
         try {
             // Use the specific Selected Career SOC, or fallback to Major, or default.
             const socCode = profile?.targetCareer || profile?.major || "15-1252";
-            console.log("DAMAGE REPORT DEBUG:", {
-                targetCareer: profile?.targetCareer,
-                major: profile?.major,
-                FINAL_SOC: socCode
-            });
+            console.log(`Fighting Boss (Fetching Data) for SOC: ${socCode}`);
+
+            // Try API with 3s timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
 
             const response = await fetch(`${API_URL}/api/boss`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ soc_code: socCode })
+                body: JSON.stringify({ soc_code: socCode }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error("Server Response Error");
+
             const data = await response.json();
             setBossStats(data);
         } catch (error) {
-            console.error("Boss Fight Failed:", error);
-            // Fallback: Use School Data (Department of Education)
-            // This is NOT simulated; it is the actual median earnings for this school.
-            setBossStats({
-                title: null, // Use profile name
-                annual_mean_wage: baseSalary,
-                projected_growth: 4.0, // National Avg
-                source: "College Scorecard (Dept of Ed)"
-            });
+            console.warn("Boss Fight Network Error. Deploying Offline Tactics.", error);
+
+            const socCode = profile?.targetCareer || profile?.major || "15-1252";
+            const fallback = OFFLINE_BOSS_DATA[socCode] || {
+                title: profile?.careerName || "Unknown Specialist",
+                annual_mean_wage: 65000,
+                projected_growth: 4.0,
+                source: "Offline Database"
+            };
+
+            setBossStats(fallback);
         } finally {
             setLoading(false);
         }
@@ -135,11 +163,11 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
                                 {/* DEBUG LINE REMOVED */}
                                 <View style={styles.statRow}>
                                     <View style={styles.statBox}>
-                                        <Text style={styles.label}>LOOT (AVG WAGE)</Text>
+                                        <Text style={styles.label}>LOOT</Text>
                                         <Text style={styles.gold}>${effectiveSalary.toLocaleString()}</Text>
                                     </View>
                                     <View style={styles.statBox}>
-                                        <Text style={styles.label}>BOSS HP (GROWTH)</Text>
+                                        <Text style={styles.label}>MARKET OUTLOOK</Text>
                                         <Text style={bossStats.projected_growth >= 0 ? styles.green : styles.red}>
                                             {bossStats.projected_growth}%
                                         </Text>
@@ -164,7 +192,7 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
                     <Text style={styles.damageLabel}>COOLDOWN</Text>
                     <Text style={styles.damageValue}>{cooldown} YEARS</Text>
                     <Text style={styles.subtext}>
-                        To pay off ${effectiveDebt.toLocaleString()} debt
+                        To reduce Remaining HP (${effectiveDebt.toLocaleString()}) to zero
                     </Text>
                     <Text style={[styles.label, { marginTop: 10, color: theme.colors.textDim }]}>ROI RATING: {school.ranking || 'N/A'}-TIER</Text>
 

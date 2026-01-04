@@ -19,21 +19,34 @@ const CLASSES = [
 
 export default function LobbyScreen({ navigation, showTutorial, closeTutorial }) {
     const [selectedClass, setSelectedClass] = useState(null);
+    const [activeScenario, setActiveScenario] = useState(null);
 
     const handleSelect = (cls) => {
         setSelectedClass(cls);
+        setActiveScenario(cls.id.toUpperCase());
+    };
+
+    const handleTutorialClose = () => {
+        setActiveScenario(null);
+        if (selectedClass) {
+            navigation.navigate('Stats', { selectedClass });
+        }
     };
 
     const handleNext = () => {
         if (selectedClass) {
-            // Updated for Manual Navigation
             navigation.navigate('Stats', { selectedClass });
         }
     };
 
     return (
         <SafeAreaView style={styles.container}>
+            {/* Initial Lobby Tutorial (Controlled by App.js, currently disabled) */}
             <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="LOBBY" />
+
+            {/* Class Specific Popup */}
+            <HoloTutorial visible={!!activeScenario} onClose={handleTutorialClose} scenario={activeScenario || 'LOBBY'} />
+
             <View style={styles.header}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1} adjustsFontSizeToFit>CHOOSE YOUR CLASS</Text>
@@ -69,15 +82,17 @@ export default function LobbyScreen({ navigation, showTutorial, closeTutorial })
                 })}
             </ScrollView>
 
-            <TouchableOpacity
-                style={[styles.nextButton, !selectedClass && styles.disabledButton]}
-                onPress={handleNext}
-                disabled={!selectedClass}
-            >
-                <Text style={styles.buttonText}>INITIALIZE</Text>
-                <ChevronRight color={theme.colors.text} />
-            </TouchableOpacity>
-        </SafeAreaView>
+            {selectedClass && (
+                <TouchableOpacity
+                    onPress={handleNext}
+                    style={[styles.nextButton]}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.buttonText}>CONTINUE</Text>
+                    <ChevronRight size={18} color={theme.colors.text} />
+                </TouchableOpacity>
+            )}
+        </SafeAreaView >
     );
 }
 

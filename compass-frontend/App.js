@@ -25,9 +25,11 @@ export default function App() {
     'Stats': true,
     'Career': true,
     'Map': true,
+    'MissionPreview': true,
     'PvP': true,
     'DamageReport': true,
-    'Profile': true
+    'Profile': true,
+    'FieldManual': true
   });
 
   const [savedMissions, setSavedMissions] = useState([]);
@@ -38,7 +40,7 @@ export default function App() {
 
   const resetTutorials = () => {
     setTutorialState({
-      'Lobby': true, 'Stats': true, 'Career': true, 'Map': true, 'PvP': true, 'DamageReport': true, 'Profile': true
+      'Lobby': false, 'Stats': true, 'Career': true, 'Map': true, 'MissionPreview': true, 'PvP': true, 'DamageReport': true, 'Profile': true, 'FieldManual': true
     });
   };
 
@@ -107,6 +109,8 @@ export default function App() {
           saveMission={saveMission}
           showPvPTutorial={tutorialState['PvP']}
           closePvPTutorial={() => markSeen('PvP')}
+          showPreviewTutorial={tutorialState['MissionPreview']}
+          closePreviewTutorial={() => markSeen('MissionPreview')}
         />;
       case 'CareerSelectionScreen':
         return <CareerSelectionScreen

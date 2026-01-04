@@ -1,7 +1,7 @@
 import requests
 try:
     resp = requests.post(
-        "https://compass-api-v6.loca.lt/api/score", 
+        "https://compass-api-v7.loca.lt/api/score", 
         json={"gpa": 3.0, "major": "11-1021.00", "budget": 20000, "sat": 1200}
     )
     print(f"Status: {resp.status_code}")

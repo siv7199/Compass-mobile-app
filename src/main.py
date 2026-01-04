@@ -57,7 +57,9 @@ def get_score(request: ScoreRequest):
             user_sat=request.sat
         )
         # Prompt said "Top 20 schools"
-        return results[:100]
+        # Prompt said "Top 20 schools", but we give 50 for variety
+        # Limiting to 50 to prevent Timeouts over Tunnel
+        return results[:50]
     except Exception as e:
         logging.error(f"Error in get_score: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -129,6 +129,8 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=
 
     # SAFETY NET: Ensure valid "Safety Schools" appear as Green/Blue (A/B)
     # If user matches stats and can afford it, don't let low prestige kill the score.
+    school_sat_75 = school_data.get('sat_75')
+    
     if user_sat and school_sat_75 and user_budget > 0:
         is_strong_candidate = user_sat >= school_sat_75
         is_affordable = (cost_to_compare / user_budget) <= 1.0
