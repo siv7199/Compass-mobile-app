@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { X, Swords, Trophy, DollarSign, Clock } from 'lucide-react-native';
 import LoadoutPanel from './LoadoutPanel';
 import { LineChart } from 'react-native-chart-kit';
@@ -9,6 +9,8 @@ import HoloTutorial from './HoloTutorial';
 
 export default function PvPModal({ visible, onClose, school1, school2, userProfile, saveMission, showTutorial, closeTutorial }) {
     if (!school1 || !school2) return null;
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
 
     // --- SHARED LOADOUT STATE ---
     const [scholarships, setScholarships] = useState(0);
@@ -247,7 +249,7 @@ export default function PvPModal({ visible, onClose, school1, school2, userProfi
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: { flex: 1, paddingTop: 60, backgroundColor: 'rgba(0,0,0,0.9)' },
     header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 10, position: 'relative', paddingHorizontal: 20 },
     title: { color: '#fff', fontFamily: theme.fonts.heading, fontSize: 18, letterSpacing: 2 },

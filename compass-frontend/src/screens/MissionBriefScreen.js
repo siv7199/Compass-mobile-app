@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CheckCircle, ArrowRight } from 'lucide-react-native';
 
 export default function MissionBriefScreen({ navigation, route }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const { schoolName } = route.params || { schoolName: 'Unknown Target' };
 
     return (
@@ -40,7 +42,7 @@ export default function MissionBriefScreen({ navigation, route }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background, // Fallback

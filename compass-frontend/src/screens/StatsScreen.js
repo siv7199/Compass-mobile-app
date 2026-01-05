@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { ChevronRight } from 'lucide-react-native';
 import axios from 'axios';
 
@@ -9,6 +9,8 @@ import { API_URL } from '../config';
 import HoloTutorial from '../components/HoloTutorial';
 
 export default function StatsScreen({ route, navigation, showTutorial, closeTutorial }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     if (!route || !route.params) {
         return (
             <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
@@ -151,7 +153,7 @@ export default function StatsScreen({ route, navigation, showTutorial, closeTuto
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,

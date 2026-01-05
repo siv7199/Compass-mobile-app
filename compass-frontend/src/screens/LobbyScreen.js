@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Briefcase, Heart, Zap, PenTool, ChevronRight } from 'lucide-react-native';
 import HoloTutorial from '../components/HoloTutorial';
@@ -18,6 +18,9 @@ const CLASSES = [
 ];
 
 export default function LobbyScreen({ navigation, showTutorial, closeTutorial }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
+
     const [selectedClass, setSelectedClass] = useState(null);
     const [activeScenario, setActiveScenario] = useState(null);
 
@@ -51,7 +54,7 @@ export default function LobbyScreen({ navigation, showTutorial, closeTutorial })
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1} adjustsFontSizeToFit>CHOOSE YOUR CLASS</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(0, 255, 153, 0.1)', borderWidth: 1, borderColor: theme.colors.tacticalGreen, borderRadius: 4 }}>
-                        <Text style={{ color: theme.colors.tacticalGreen, fontFamily: theme.colors.mono, fontSize: 12, fontWeight: 'bold' }}>ID CARD</Text>
+                        <Text style={{ color: theme.colors.tacticalGreen, fontFamily: theme.fonts.mono, fontSize: 12, fontWeight: 'bold' }}>ID CARD</Text>
                     </TouchableOpacity>
                 </View>
                 <Text style={styles.subtitle}>Select your operational specialty.</Text>
@@ -96,7 +99,7 @@ export default function LobbyScreen({ navigation, showTutorial, closeTutorial })
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,

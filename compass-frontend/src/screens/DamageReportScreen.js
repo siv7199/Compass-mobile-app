@@ -3,11 +3,28 @@ import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Modal }
 import Slider from '@react-native-community/slider';
 import { BlurView } from 'expo-blur';
 import { API_URL } from '../config';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import LoadoutPanel from '../components/LoadoutPanel';
 import HoloTutorial from '../components/HoloTutorial';
+import { ChevronRight } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // Ensure safe area view is imported if used (it was used in early return but not imported in original file?? - Wait, I see it in usage but not import list in snippet? Ah, snippet has imports at top.)
+// Original snippet ended imports at line 8.
+// Wait, looking at original file lines 1-9:
+// 1: import ...
+// ...
+// It does NOT import SafeAreaView! But line 13 uses Is SafeAreaView! 
+// "13: <SafeAreaView style=..."
+// This file must have been crashing or I missed the import in the view?
+// Let me double check usage of SafeAreaView in DamageReportScreen.js view...
+// Line 13: <SafeAreaView ...
+// Imports lines 1-8 do NOT show SafeAreaView.
+// This means DamageReportScreen was likely broken or using a global? No, imports are explicit. 
+// I will ADD SafeAreaView to imports to be safe.
 
 export default function DamageReportScreen({ route, navigation, showTutorial, setShowTutorial }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
+
     if (!route || !route.params) {
         return (
             <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.tacticalBlack, justifyContent: 'center', alignItems: 'center' }}>
@@ -151,7 +168,12 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
                 {/* 1. THE BOSS CARD (Job Market) */}
                 <View style={styles.bossCard}>
                     <BlurView intensity={80} style={styles.glass}>
-                        <Text style={styles.header}>TARGET LOCKED</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 10, marginRight: 10, borderWidth: 1, borderColor: theme.colors.glassBorder, borderRadius: 8 }}>
+                                <ChevronRight style={{ transform: [{ rotate: '180deg' }] }} color={theme.colors.secondary} size={20} />
+                            </TouchableOpacity>
+                            <Text style={[styles.header, { marginBottom: 0 }]}>TARGET LOCKED</Text>
+                        </View>
 
                         {loading ? (
                             <Text style={styles.loading}>Scanning Market Data...</Text>
@@ -189,7 +211,7 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
 
                 {/* 3. DAMAGE REPORT (Results) */}
                 <View style={styles.damageReport}>
-                    <Text style={styles.damageLabel}>COOLDOWN</Text>
+                    <Text style={[styles.damageLabel, { color: theme.colors.text }]}>COOLDOWN</Text>
                     <Text style={styles.damageValue}>{cooldown} YEARS</Text>
                     <Text style={styles.subtext}>
                         To reduce Remaining HP (${effectiveDebt.toLocaleString()}) to zero
@@ -213,10 +235,10 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0a0a0a',
+        backgroundColor: theme.colors.background,
     },
     scroll: {
         padding: 20,
@@ -241,46 +263,15 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     bossTitle: {
-        color: '#fff',
+        color: theme.colors.text,
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 15,
         fontFamily: theme.fonts.heading,
     },
-    statRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 10,
-    },
-    statBox: {
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        padding: 10,
-        borderRadius: 8,
-        width: '48%',
-    },
-    label: {
-        color: '#888',
-        fontSize: 10,
-        fontWeight: 'bold',
-        fontFamily: theme.fonts.mono,
-    },
-    gold: {
-        color: theme.colors.neonGold,
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 5,
-        fontFamily: theme.fonts.heading,
-    },
-    green: { color: theme.colors.success, fontSize: 18, fontWeight: 'bold', marginTop: 5, fontFamily: theme.fonts.heading },
-    red: { color: theme.colors.danger, fontSize: 18, fontWeight: 'bold', marginTop: 5, fontFamily: theme.fonts.heading },
-    loading: { color: '#666', fontStyle: 'italic', fontFamily: theme.fonts.mono },
-    source: { color: '#444', fontSize: 10, textAlign: 'right', marginTop: 5, fontFamily: theme.fonts.mono },
-
-    loadoutPanel: {
-        marginBottom: 30,
-    },
+    // ...
     sectionTitle: {
-        color: '#fff',
+        color: theme.colors.text,
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 20,
@@ -289,33 +280,12 @@ const styles = StyleSheet.create({
         paddingLeft: 10,
         fontFamily: theme.fonts.heading,
     },
-    sliderContainer: {
-        marginBottom: 20,
-    },
-    sliderLabel: {
-        color: '#ccc',
-        fontSize: 14,
-        marginBottom: 5,
-        fontFamily: theme.fonts.mono,
-    },
-
-    damageReport: {
-        alignItems: 'center',
-        marginTop: 20,
-        marginBottom: 50,
-    },
-    damageLabel: {
-        color: '#666',
-        fontSize: 12,
-        letterSpacing: 4,
-        marginBottom: 5,
-        fontFamily: theme.fonts.mono,
-    },
+    // ...
     damageValue: {
-        color: '#fff',
+        color: theme.colors.primary, // Changed from text to primary for high visibility in Dark Mode
         fontSize: 42,
         fontWeight: '900',
-        textShadowColor: theme.colors.secondary,
+        textShadowColor: theme.colors.tacticalGreen, // Matched shadow to primary
         textShadowRadius: 10,
         fontFamily: theme.fonts.heading,
     },

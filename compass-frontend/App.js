@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StatusBar } from 'react-native';
-import { theme } from './src/theme';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 // Screens
 import LobbyScreen from './src/screens/LobbyScreen';
@@ -16,9 +16,25 @@ import HelpScreen from './src/screens/HelpScreen';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-export default function App() {
+import { registerRootComponent } from 'expo';
+
+// ... imports
+
+export default function AppWrapper() {
+  return (
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  );
+}
+
+registerRootComponent(AppWrapper);
+
+function App() {
+  const { theme, isDarkMode } = useTheme();
   const [currentScreen, setCurrentScreen] = useState('Splash');
   const [screenParams, setScreenParams] = useState({});
+
   // Tutorial State per Screen
   const [tutorialState, setTutorialState] = useState({
     'Lobby': true,
@@ -48,8 +64,6 @@ export default function App() {
     setSavedMissions(prev => [mission, ...prev]);
   };
 
-
-
   const clearMissions = () => {
     setSavedMissions([]);
   };
@@ -69,8 +83,9 @@ export default function App() {
       if (currentScreen === 'Stats') setCurrentScreen('Lobby');
       if (currentScreen === 'MissionMap') setCurrentScreen('Stats');
       if (currentScreen === 'MissionBrief') setCurrentScreen('Lobby');
-      if (currentScreen === 'DamageReportScreen') setCurrentScreen('Lobby'); // Back to Lobby? Or Map?
-      if (currentScreen === 'MissionLogScreen') setCurrentScreen('Lobby'); // Back to Lobby?
+      if (currentScreen === 'DamageReportScreen') setCurrentScreen('CareerSelectionScreen'); // Fix: Go back to Career Select
+      if (currentScreen === 'MissionLogScreen') setCurrentScreen('Lobby');
+      if (currentScreen === 'CareerSelectionScreen') setCurrentScreen('MissionMap'); // Fix: Route back to Map
     }
   };
 
@@ -126,20 +141,14 @@ export default function App() {
           navigation={navigation}
           route={{ params: screenParams.DamageReportScreen }}
           showTutorial={tutorialState['DamageReport']}
-          setShowTutorial={(val) => val ? resetTutorials() : markSeen('DamageReport')} // Complex toggle mapping
-          saveMission={saveMission} // Pass save function? No, PvP does saving.
+          setShowTutorial={(val) => val ? resetTutorials() : markSeen('DamageReport')}
+          saveMission={saveMission}
         />;
       case 'MissionLogScreen':
         return <MissionLogScreen
           navigation={navigation}
           route={{ params: screenParams.MissionLogScreen }}
-          showTutorial={tutorialState['DamageReport']} // Re-use DamageReport state or new one? User said "every page".
-          // Let's use DamageReport state for simplicity OR map it.
-          // Wait, I didn't add 'MissionLog' to tutorialState in App.js Step 3976.
-          // I should use "DamageReport" state or add a new one.
-          // I'll add 'MissionLog' key to App.js state later if I strictly want it unique.
-          // For now, let's map it to 'DamageReport' to avoid App.js schema change crash.
-          // actually, user said "every single page". 
+          showTutorial={tutorialState['DamageReport']}
           closeTutorial={() => markSeen('DamageReport')}
           saveMission={saveMission}
         />;
@@ -153,7 +162,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
         {renderScreen()}
       </View>
     </SafeAreaProvider>

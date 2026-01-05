@@ -2,10 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import HoloTutorial from '../components/HoloTutorial';
 
 export default function MissionLogScreen({ route, navigation, saveMission, showTutorial, closeTutorial }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const { debt, salary, schoolName } = route.params;
 
     // --- MATH ENGINE ---
@@ -57,14 +59,14 @@ export default function MissionLogScreen({ route, navigation, saveMission, showT
                     yAxisInterval={1}
                     formatYLabel={(value) => Math.round(value / 1000).toString()} // Convert 100000 to 100
                     chartConfig={{
-                        backgroundColor: theme.colors.tacticalBlack,
-                        backgroundGradientFrom: theme.colors.tacticalBlack,
-                        backgroundGradientTo: theme.colors.tacticalBlack,
+                        backgroundColor: theme.colors.background,
+                        backgroundGradientFrom: theme.colors.background,
+                        backgroundGradientTo: theme.colors.background,
                         decimalPlaces: 0,
-                        color: (opacity = 1) => `rgba(0, 255, 153, ${opacity})`, // Neon Green
-                        labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                        color: (opacity = 1) => theme.isDark ? `rgba(0, 255, 153, ${opacity})` : `rgba(0, 170, 102, ${opacity})`,
+                        labelColor: (opacity = 1) => theme.isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
                         style: { borderRadius: 16 },
-                        propsForDots: { r: "4", strokeWidth: "2", stroke: "#00FF99" }
+                        propsForDots: { r: "4", strokeWidth: "2", stroke: theme.colors.primary }
                     }}
                     bezier
                     style={{
@@ -106,7 +108,7 @@ export default function MissionLogScreen({ route, navigation, saveMission, showT
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.tacticalBlack,
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     bigValue: {
-        color: '#fff',
+        color: theme.colors.text,
         fontSize: 48,
         fontFamily: theme.fonts.heading,
         textShadowColor: theme.colors.tacticalGreen,

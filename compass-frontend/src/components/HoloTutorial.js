@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { theme } from '../theme';
-import { Shield, Target, Clock, Zap, Heart, Briefcase, PenTool, Swords } from 'lucide-react-native';
+import { useTheme } from '../theme/ThemeContext';
+import { Shield, Target, Clock, Zap, Heart, Briefcase, PenTool, Swords, Eye } from 'lucide-react-native';
 
 const SCENARIOS = {
     'LOBBY': [
@@ -75,6 +75,7 @@ const SCENARIOS = {
         { title: "FREEDOM DATE", desc: "The calculated moment you become debt-free.", icon: Shield },
     ],
     'PROFILE': [
+        { title: "VISUAL UPLINK", desc: "Toggle Night Vision (Theme) and Accessibilty Settings.", icon: Eye },
         { title: "DOSSIER", desc: "Review your saved intel and mission logs here.", icon: Shield },
         { title: "FIELD MANUAL", desc: "Access the Tactical Glossary to decode mission terminology.", icon: Briefcase },
         { title: "SAVED MISSIONS", desc: "Tap any saved target to revisit its intel.", icon: Target },
@@ -83,6 +84,8 @@ const SCENARIOS = {
 };
 
 export default function HoloTutorial({ visible, onClose, scenario = 'DAMAGE_REPORT' }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const [step, setStep] = useState(0);
 
     const steps = SCENARIOS[scenario] || SCENARIOS['DAMAGE_REPORT'];
@@ -139,7 +142,7 @@ export default function HoloTutorial({ visible, onClose, scenario = 'DAMAGE_REPO
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'center',

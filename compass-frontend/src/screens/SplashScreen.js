@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 
 const LOG_LINES = [
@@ -13,6 +13,8 @@ const LOG_LINES = [
 ];
 
 export default function SplashScreen({ navigation }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const [logs, setLogs] = useState([]);
     const [fadeAnim] = useState(new Animated.Value(0));
 
@@ -63,7 +65,7 @@ export default function SplashScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,

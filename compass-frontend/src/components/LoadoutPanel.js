@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function LoadoutPanel({
     scholarships, setScholarships,
@@ -9,6 +9,9 @@ export default function LoadoutPanel({
     workStudy, setWorkStudy,
     onSlidingStart, onSlidingComplete // Lock Scroll
 }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
+
     return (
         <View style={styles.container}>
             <Text style={styles.sectionTitle}>EQUIP LOADOUT</Text>
@@ -22,6 +25,8 @@ export default function LoadoutPanel({
                 color={theme.colors.tacticalGreen}
                 onSlidingStart={onSlidingStart}
                 onSlidingComplete={onSlidingComplete}
+                theme={theme}
+                styles={styles}
             />
 
             <TacticalSlider
@@ -33,6 +38,8 @@ export default function LoadoutPanel({
                 color={theme.colors.secondary}
                 onSlidingStart={onSlidingStart}
                 onSlidingComplete={onSlidingComplete}
+                theme={theme}
+                styles={styles}
             />
 
             <TacticalSlider
@@ -44,13 +51,15 @@ export default function LoadoutPanel({
                 color={theme.colors.warning}
                 onSlidingStart={onSlidingStart}
                 onSlidingComplete={onSlidingComplete}
+                theme={theme}
+                styles={styles}
             />
         </View>
     );
 }
 
-// Reusable Tactical Slider (Defined OUTSIDE to prevent re-renders)
-const TacticalSlider = ({ label, value, max, step, setValue, color, onSlidingStart, onSlidingComplete }) => (
+// Reusable Tactical Slider (Defined OUTSIDE to prevent re-renders, but needs theme prop now)
+const TacticalSlider = ({ label, value, max, step, setValue, color, onSlidingStart, onSlidingComplete, theme, styles }) => (
     <View style={styles.sliderContainer}>
         <View style={styles.headerRow}>
             <Text style={styles.sliderLabel}>{label}</Text>
@@ -72,7 +81,7 @@ const TacticalSlider = ({ label, value, max, step, setValue, color, onSlidingSta
     </View>
 );
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         backgroundColor: theme.colors.glass,
         padding: 20,

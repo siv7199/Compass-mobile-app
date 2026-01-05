@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { ChevronLeft, HelpCircle, Shield, Target, Zap, Clock, Heart, Briefcase } from 'lucide-react-native';
 
 const DICTIONARY = [
@@ -29,6 +29,8 @@ const FAQS = [
 ];
 
 export default function HelpScreen({ navigation }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -74,7 +76,7 @@ export default function HelpScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,

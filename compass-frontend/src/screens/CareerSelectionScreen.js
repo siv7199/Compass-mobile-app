@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { ChevronRight, ArrowUpRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_URL } from '../config';
@@ -10,6 +10,9 @@ import HoloTutorial from '../components/HoloTutorial';
 
 // Add new props
 export default function CareerSelectionScreen({ navigation, route, showTutorial, closeTutorial }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
+
     if (!route || !route.params) {
         // Fallback or loading state
         return (
@@ -159,7 +162,27 @@ export default function CareerSelectionScreen({ navigation, route, showTutorial,
             <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="CAREER" />
 
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', marginBottom: 10, padding: 8, borderWidth: 1, borderColor: theme.colors.glassBorder, borderRadius: 8 }}>
+                <TouchableOpacity
+                    onPress={() => {
+                        console.log("Back Button Pressed"); // Debug Log
+                        if (navigation.canGoBack && navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            // Fallback if goBack missing
+                            navigation.goBack();
+                        }
+                    }}
+                    style={{
+                        alignSelf: 'flex-start',
+                        marginBottom: 10,
+                        padding: 12,
+                        borderWidth: 1,
+                        borderColor: theme.colors.glassBorder,
+                        borderRadius: 8,
+                        zIndex: 10 // Restore normal zIndex
+                    }}
+                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
                     <ChevronRight style={{ transform: [{ rotate: '180deg' }] }} color={theme.colors.text} size={24} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>TARGET SELECTION</Text>
@@ -181,7 +204,7 @@ export default function CareerSelectionScreen({ navigation, route, showTutorial,
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,

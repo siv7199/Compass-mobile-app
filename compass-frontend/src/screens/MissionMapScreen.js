@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 import { BlurView } from 'expo-blur';
 import { X, Shield, DollarSign, Clock, Swords, CheckCircle, Circle } from 'lucide-react-native';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import HoloTutorial from '../components/HoloTutorial';
 import { ChevronLeft } from 'lucide-react-native';
 
 const TierBadge = ({ tier }) => {
+    const { theme } = useTheme();
     const getColor = () => {
         switch (tier) {
             case 'S': return theme.colors.primary;
@@ -21,15 +22,32 @@ const TierBadge = ({ tier }) => {
         }
     };
 
+    const styles = getStyles(theme); // Use common styles or inline? TierBadge uses styles.tierBadge which is defined below. 
+    // Wait, styles is defined at bottom. Function hoisting works, but getStyles is const. 
+    // Accessing 'styles' from global scope (if I change it to getter) will fail.
+    // I should move styles inside or rely on a Prop, or just inline the style for Badge since the colors are dynamic anyway.
+
+    // Better approach: Since 'styles' at bottom will become a function 'getStyles', I cannot use 'styles.tierBadge' directly here unless I call it.
+    // But calling getStyles(theme) every render of TierBadge is fine but maybe expensive?
+    // Let's just use `useTheme` and inline the dynamic color, but KEEP the static structure from `styles`? 
+    // No, `styles` will not exist as a static object.
+
+    // I will explicitly pass styles or just let TierBadge have its own mini style or inline it.
+    // For now, I will assume MissionMapScreen will define 'getStyles' and I can use it if I move TierBadge inside or just call it.
+
+    // Actually, to avoid complexity, I will just call getStyles(theme) inside TierBadge.
+
     return (
-        <View style={[styles.tierBadge, { borderColor: getColor() }]}>
-            <Text style={[styles.tierText, { color: getColor() }]}>{tier}</Text>
+        <View style={[getStyles(theme).tierBadge, { borderColor: getColor() }]}>
+            <Text style={[getStyles(theme).tierText, { color: getColor() }]}>{tier}</Text>
         </View>
     );
 };
 
 // Add props
 export default function MissionMapScreen({ navigation, route, showTutorial, closeTutorial, saveMission, showPvPTutorial, closePvPTutorial, showPreviewTutorial, closePreviewTutorial }) {
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const userProfile = route?.params?.userProfile;
 
     if (!userProfile) {
@@ -43,6 +61,8 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
         );
     }
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [isOffline, setIsOffline] = useState(false);
     const [missions, setMissions] = useState([]);
 
     // PvP Selection State
@@ -59,6 +79,8 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
 
     const fetchMissions = async () => {
         console.log(`Fetching missions from ${API_URL}/api/score`);
+        if (!loading) setRefreshing(true);
+
         try {
             const payload = {
                 gpa: userProfile.gpa,
@@ -70,13 +92,14 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
             const response = await axios.post(
                 `${API_URL}/api/score`,
                 payload,
-                { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 15000 } // Increased to 15s for slow tunnels
+                { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 15000 }
             );
             setMissions(response.data);
+            setIsOffline(false); // Connection Successful
         } catch (error) {
-            console.error("Fetch Missions Error:", error);
-            // Alert.alert("Connection Error", "Could not reach Command Server. Running in Offline Simulation Mode.");
-            // Silent fallback is better for UX if tunnel is flaky
+            console.log("Tactical Network Unavailable. Engaging Offline Simulation.");
+
+            setIsOffline(true);
 
             setMissions([
                 { school_id: 1, school_name: 'Simulated University (OFFLINE)', compass_score: 95, ranking: 'S', debt_years: 1.2, earnings: 75000, debt: 15000, net_price: 18000 },
@@ -85,6 +108,7 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
             ]);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -171,16 +195,27 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
                     <Text style={styles.loadingText}>SCANNING DATABASE...</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={missions}
-                    renderItem={renderItem}
-                    keyExtractor={item => item.school_id.toString()}
-                    contentContainerStyle={styles.list}
-                />
+                <>
+                    {/* OFFLINE BANNER */}
+                    {isOffline && (
+                        <TouchableOpacity style={styles.offlineBanner} onPress={fetchMissions}>
+                            <Text style={styles.offlineText}>⚠ OFFLINE MODE - TAP TO RECONNECT</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <FlatList
+                        data={missions}
+                        renderItem={renderItem}
+                        keyExtractor={item => item.school_id.toString()}
+                        contentContainerStyle={styles.list}
+                        refreshing={refreshing}
+                        onRefresh={fetchMissions}
+                    />
+                </>
             )}
 
             {/* PVP FAB */}
-            {selectedSchools.length === 2 && (
+            {selectedSchools.length === 2 && !isOffline && (
                 <TouchableOpacity
                     style={styles.fab}
                     onPress={() => setPvpVisible(true)}
@@ -269,7 +304,7 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -456,5 +491,18 @@ const styles = StyleSheet.create({
     },
     disabledButton: {
         opacity: 0.5,
+    },
+    offlineBanner: {
+        backgroundColor: theme.colors.warning,
+        padding: 5,
+        alignItems: 'center',
+        marginBottom: 10,
+        borderRadius: 5,
+    },
+    offlineText: {
+        color: '#000',
+        fontFamily: theme.fonts.heading,
+        fontSize: 12,
+        fontWeight: 'bold',
     },
 });
