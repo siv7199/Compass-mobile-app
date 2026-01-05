@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+pydantic
+# pandas  # using sqlite3 mostly, but if pandas is used in logic
+# numpy   # check if utilized

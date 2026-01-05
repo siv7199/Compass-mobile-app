@@ -1,11 +1,12 @@
-import sqlite3
-import math
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-DB_NAME = r'..\database\compass.db'
+# Robust Path Handling (Works on Windows & Linux/Render)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, 'compass.db')
 
 def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=3.5, user_sat=None):
     # ... checks ...
