@@ -24,6 +24,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "44c770d7-a99a-4b1b-b861-502f95a1b080"
+      }
+    },
+    "owner": "svangara",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/44c770d7-a99a-4b1b-b861-502f95a1b080"
     }
   }
 }
