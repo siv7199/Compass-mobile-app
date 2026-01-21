@@ -3,90 +3,80 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, ActivityIndi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { BlurView } from 'expo-blur';
-import { X, Shield, DollarSign, Clock, Swords, CheckCircle, Circle } from 'lucide-react-native';
+import { X, DollarSign, Clock, ChevronLeft, TrendingUp, Bookmark } from 'lucide-react-native';
 import axios from 'axios';
 import { API_URL } from '../config';
-import PvPModal from '../components/PvPModal';
-import HoloTutorial from '../components/HoloTutorial';
-import { ChevronLeft } from 'lucide-react-native';
 
 const TierBadge = ({ tier }) => {
     const { theme } = useTheme();
     const getColor = () => {
         switch (tier) {
-            case 'S': return theme.colors.primary;
-            case 'A': return theme.colors.secondary;
-            case 'B': return theme.colors.warning;
-            case 'F': return theme.colors.danger;
+            case 'S': return '#FFD700';
+            case 'A': return theme.colors.primary;
+            case 'B': return theme.colors.secondary;
+            case 'C': return theme.colors.info;
             default: return theme.colors.textDim;
         }
     };
 
-    const styles = getStyles(theme); // Use common styles or inline? TierBadge uses styles.tierBadge which is defined below. 
-    // Wait, styles is defined at bottom. Function hoisting works, but getStyles is const. 
-    // Accessing 'styles' from global scope (if I change it to getter) will fail.
-    // I should move styles inside or rely on a Prop, or just inline the style for Badge since the colors are dynamic anyway.
-
-    // Better approach: Since 'styles' at bottom will become a function 'getStyles', I cannot use 'styles.tierBadge' directly here unless I call it.
-    // But calling getStyles(theme) every render of TierBadge is fine but maybe expensive?
-    // Let's just use `useTheme` and inline the dynamic color, but KEEP the static structure from `styles`? 
-    // No, `styles` will not exist as a static object.
-
-    // I will explicitly pass styles or just let TierBadge have its own mini style or inline it.
-    // For now, I will assume MissionMapScreen will define 'getStyles' and I can use it if I move TierBadge inside or just call it.
-
-    // Actually, to avoid complexity, I will just call getStyles(theme) inside TierBadge.
-
     return (
-        <View style={[getStyles(theme).tierBadge, { borderColor: getColor() }]}>
-            <Text style={[getStyles(theme).tierText, { color: getColor() }]}>{tier}</Text>
+        <View style={[{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: getColor() + '20',
+            justifyContent: 'center',
+            alignItems: 'center',
+        }]}>
+            <Text style={{
+                fontSize: 16,
+                fontWeight: '700',
+                color: getColor()
+            }}>{tier}</Text>
         </View>
     );
 };
 
-// Add props
-export default function MissionMapScreen({ navigation, route, showTutorial, closeTutorial, saveMission, showPvPTutorial, closePvPTutorial, showPreviewTutorial, closePreviewTutorial }) {
+export default function MissionMapScreen({ navigation, route, saveMission }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
     const userProfile = route?.params?.userProfile;
 
     if (!userProfile) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: theme.colors.textDim, marginBottom: 20 }}>NO MISSION DATA FOUND.</Text>
-                <TouchableOpacity style={{ padding: 10, borderWidth: 1, borderColor: theme.colors.primary }} onPress={() => navigation && navigation.navigate('Lobby')}>
-                    <Text style={{ color: theme.colors.primary }}>RETURN TO BASE</Text>
-                </TouchableOpacity>
+            <SafeAreaView style={styles.container}>
+                <View style={styles.center}>
+                    <Text style={{ color: theme.colors.textDim, marginBottom: 20 }}>No search data found.</Text>
+                    <TouchableOpacity
+                        style={styles.backBtn}
+                        onPress={() => navigation && navigation.goBack()}
+                    >
+                        <Text style={{ color: theme.colors.primary }}>Go Back</Text>
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
         );
     }
+
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [isOffline, setIsOffline] = useState(false);
-    const [missions, setMissions] = useState([]);
-
-    // PvP Selection State
-    const [selectedSchools, setSelectedSchools] = useState([]);
-    const [pvpVisible, setPvpVisible] = useState(false);
-
-    // Mission Detail State
-    const [selectedMission, setSelectedMission] = useState(null);
-    const [accepting, setAccepting] = useState(false);
+    const [schools, setSchools] = useState([]);
+    const [selectedSchool, setSelectedSchool] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        fetchMissions();
+        fetchSchools();
     }, []);
 
-    const fetchMissions = async () => {
-        console.log(`Fetching missions from ${API_URL}/api/score`);
-        if (!loading) setRefreshing(true);
+    const fetchSchools = async () => {
+        console.log(`Fetching from ${API_URL}/api/score`);
+        setLoading(true);
 
         try {
             const payload = {
-                gpa: userProfile.gpa,
-                sat: userProfile.sat,
-                major: userProfile.targetCareer,
-                budget: userProfile.budget
+                gpa: parseFloat(userProfile.gpa),
+                sat: userProfile.sat ? parseInt(userProfile.sat) : null,
+                major: userProfile.career?.soc || "15-1252", // Ensure we access the nested SOC code
+                budget: parseInt(userProfile.budget)
             };
 
             const response = await axios.post(
@@ -94,212 +84,159 @@ export default function MissionMapScreen({ navigation, route, showTutorial, clos
                 payload,
                 { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 15000 }
             );
-            setMissions(response.data);
-            setIsOffline(false); // Connection Successful
+            setSchools(response.data);
         } catch (error) {
-            console.log("Tactical Network Unavailable. Engaging Offline Simulation.");
-
-            setIsOffline(true);
-
-            setMissions([
-                { school_id: 1, school_name: 'Simulated University (OFFLINE)', compass_score: 95, ranking: 'S', debt_years: 1.2, earnings: 75000, debt: 15000, net_price: 18000 },
-                { school_id: 2, school_name: 'Tech State (OFFLINE)', compass_score: 82, ranking: 'A', debt_years: 2.1, earnings: 68000, debt: 22000, net_price: 21000 },
-                { school_id: 3, school_name: 'Debt College (OFFLINE)', compass_score: 40, ranking: 'F', debt_years: 8.5, earnings: 35000, debt: 45000, net_price: 40000 },
+            console.log("Network unavailable. Using sample data.");
+            setSchools([
+                { school_id: 1, school_name: 'Sample University', compass_score: 95, ranking: 'S', debt_years: 1.2, earnings: 75000, debt: 15000, net_price: 18000 },
+                { school_id: 2, school_name: 'Tech State', compass_score: 82, ranking: 'A', debt_years: 2.1, earnings: 68000, debt: 22000, net_price: 21000 },
+                { school_id: 3, school_name: 'Community College', compass_score: 40, ranking: 'C', debt_years: 8.5, earnings: 35000, debt: 45000, net_price: 40000 },
             ]);
+            console.log("Connection Failed:", error.message);
         } finally {
             setLoading(false);
-            setRefreshing(false);
         }
     };
 
-    const handleAccept = async () => {
-        setAccepting(true);
-        // Removed blocking API check to prevent timeout errors
-        // Proceed directly to simulation/career selection
-        setTimeout(() => {
-            navigation.navigate('CareerSelectionScreen', {
-                school: selectedMission,
-                profile: userProfile
-            });
-            setSelectedMission(null);
-            setAccepting(false);
-        }, 500);
+    const handleViewDetails = (school) => {
+        navigation.navigate('CostAnalysis', {
+            school,
+            profile: userProfile
+        });
     };
 
-    // Toggle Selection for PvP
-    const toggleSelection = (school) => {
-        const isSelected = selectedSchools.find(s => s.school_id === school.school_id);
-        if (isSelected) {
-            setSelectedSchools(prev => prev.filter(s => s.school_id !== school.school_id));
-        } else {
-            if (selectedSchools.length < 2) {
-                setSelectedSchools(prev => [...prev, school]);
-            } else {
-                Alert.alert("Target Limit", "Only 2 targets can be compared at once.");
-            }
-        }
+    const handleSave = () => {
+        if (!selectedSchool || !saveMission) return;
+        setSaving(true);
+
+        saveMission({
+            schoolName: selectedSchool.school_name,
+            tier: selectedSchool.ranking,
+            netPrice: selectedSchool.net_price,
+            cooldown: selectedSchool.debt_years,
+            earnings: selectedSchool.earnings,              // Added
+            careerName: userProfile.careerName,
+            targetCareer: userProfile.targetCareer,         // Added
+            date: new Date().toLocaleDateString()
+        });
+
+        Alert.alert("Saved!", `${selectedSchool.school_name} added to your list.`);
+        setSaving(false);
+        setSelectedSchool(null);
     };
 
-    const renderItem = ({ item }) => {
-        const isSelected = selectedSchools.find(s => s.school_id === item.school_id);
-        return (
-            <TouchableOpacity
-                style={[styles.card, isSelected && styles.selectedCard]}
-                onPress={() => setSelectedMission(item)}
-                onLongPress={() => toggleSelection(item)}
-            >
-                {/* Checkbox */}
-                <TouchableOpacity
-                    style={styles.checkBox}
-                    onPress={() => toggleSelection(item)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    {isSelected ? (
-                        <CheckCircle color={theme.colors.tacticalGreen} size={24} fill="rgba(0,255,153,0.1)" />
-                    ) : (
-                        <Circle color={theme.colors.glassBorder} size={24} />
-                    )}
-                </TouchableOpacity>
-
-                <View style={styles.cardLeft}>
-                    <TierBadge tier={item.ranking} />
-                    <View style={styles.schoolInfo}>
-                        <Text style={styles.schoolName} numberOfLines={1}>{item.school_name}</Text>
-                        <Text style={styles.score}>TACTICAL SCORE: {item.compass_score}</Text>
-                    </View>
-                </View>
-                <View style={styles.cardRight}>
-                    {/* Add visual indicator or leave blank if cooldown removed */}
-                </View>
-            </TouchableOpacity >
-        );
-    };
+    const renderItem = ({ item }) => (
+        <TouchableOpacity
+            style={styles.card}
+            onPress={() => setSelectedSchool(item)}
+        >
+            <TierBadge tier={item.ranking} />
+            <View style={styles.cardContent}>
+                <Text style={styles.schoolName} numberOfLines={1}>{item.school_name}</Text>
+                <Text style={styles.scoreText}>Match Score: {item.compass_score}</Text>
+            </View>
+            <Text style={styles.priceText}>
+                ${(item.net_price || 0).toLocaleString()}/yr
+            </Text>
+        </TouchableOpacity>
+    );
 
     return (
         <SafeAreaView style={styles.container}>
-            <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="MAP" />
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: 10 }}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 8, marginRight: 8, borderWidth: 1, borderColor: theme.colors.glassBorder, borderRadius: 8 }}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ChevronLeft color={theme.colors.text} size={24} />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.headerTitle}>MISSION MAP</Text>
-                    <Text style={styles.headerSubtitle}>Targets Acquired: {missions.length}</Text>
+                    <Text style={styles.label}>Step 3 of 3</Text>
+                    <Text style={styles.title}>Your Matches</Text>
                 </View>
             </View>
+
+            <Text style={styles.resultCount}>{schools.length} colleges found</Text>
 
             {loading ? (
                 <View style={styles.center}>
                     <ActivityIndicator color={theme.colors.primary} size="large" />
-                    <Text style={styles.loadingText}>SCANNING DATABASE...</Text>
+                    <Text style={styles.loadingText}>Searching colleges...</Text>
                 </View>
             ) : (
-                <>
-                    {/* OFFLINE BANNER */}
-                    {isOffline && (
-                        <TouchableOpacity style={styles.offlineBanner} onPress={fetchMissions}>
-                            <Text style={styles.offlineText}>⚠ OFFLINE MODE - TAP TO RECONNECT</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <FlatList
-                        data={missions}
-                        renderItem={renderItem}
-                        keyExtractor={item => item.school_id.toString()}
-                        contentContainerStyle={styles.list}
-                        refreshing={refreshing}
-                        onRefresh={fetchMissions}
-                    />
-                </>
+                <FlatList
+                    data={schools}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.school_id.toString()}
+                    contentContainerStyle={styles.list}
+                    refreshing={loading}
+                    onRefresh={fetchSchools}
+                />
             )}
 
-            {/* PVP FAB */}
-            {selectedSchools.length === 2 && !isOffline && (
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={() => setPvpVisible(true)}
-                >
-                    <Swords color="#000" size={24} />
-                    <Text style={styles.fabText}>INITIATE COMPARISON</Text>
-                </TouchableOpacity>
-            )}
-
-            <PvPModal
-                visible={pvpVisible}
-                onClose={() => setPvpVisible(false)}
-                school1={selectedSchools[0]}
-                school2={selectedSchools[1]}
-                saveMission={saveMission}
-                userProfile={userProfile}
-                showTutorial={showPvPTutorial}
-                closeTutorial={closePvPTutorial}
-            />
-
-            {/* Mission Preview Tutorial */}
-            <HoloTutorial
-                visible={showPreviewTutorial && !!selectedMission}
-                onClose={closePreviewTutorial}
-                scenario="MISSION_PREVIEW"
-            />
-
-            {/* Mission Detail Overlay (Replaced Modal with Absolute View to allow Tutorial Overlay) */}
-            {selectedMission && (
-                <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]}>
-                    <BlurView intensity={90} tint="dark" style={styles.modalContainer}>
+            {/* School Detail Modal */}
+            <Modal
+                visible={!!selectedSchool}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedSchool(null)}
+            >
+                <BlurView intensity={90} tint="dark" style={styles.modalOverlay}>
+                    {selectedSchool && (
                         <View style={styles.modalContent}>
-                            <View style={[styles.modalHeader, { paddingRight: 10 }]}>
-                                <Text style={[styles.damageTitle, { flex: 1 }]}>{selectedMission.school_name}</Text>
-                                <TouchableOpacity
-                                    onPress={() => setSelectedMission(null)}
-                                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                                >
-                                    <X color={theme.colors.text} size={28} />
+                            <View style={styles.modalHeader}>
+                                <TierBadge tier={selectedSchool.ranking} />
+                                <Text style={styles.modalTitle} numberOfLines={2}>{selectedSchool.school_name}</Text>
+                                <TouchableOpacity onPress={() => setSelectedSchool(null)}>
+                                    <X color={theme.colors.textDim} size={24} />
                                 </TouchableOpacity>
                             </View>
 
-                            <Text style={styles.modalSchool}>{selectedMission.ranking} - TIER</Text>
-
-                            <View style={styles.statRow}>
-                                <View style={styles.statBlock}>
-                                    <DollarSign color={theme.colors.danger} size={20} />
-                                    <Text style={styles.statLabel}>COST TO ACQUIRE</Text>
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statBox}>
+                                    <DollarSign size={18} color={theme.colors.primary} />
+                                    <Text style={styles.statLabel}>Annual Cost</Text>
                                     <Text style={styles.statValue}>
-                                        ${selectedMission.sticker_price?.toLocaleString() || selectedMission.net_price?.toLocaleString() || 'N/A'}
+                                        ${(selectedSchool.net_price || 0).toLocaleString()}/yr
                                     </Text>
                                 </View>
-                                <View style={styles.statBlock}>
-                                    <Shield color={theme.colors.primary} size={20} />
-                                    <Text style={styles.statLabel}>LOOT DROP</Text>
+                                <View style={styles.statBox}>
+                                    <TrendingUp size={18} color={theme.colors.secondary} />
+                                    <Text style={styles.statLabel}>Avg Salary</Text>
                                     <Text style={styles.statValue}>
-                                        ${selectedMission.earnings?.toLocaleString() || 'N/A'}
+                                        ${(selectedSchool.earnings || 0).toLocaleString()}/yr
+                                    </Text>
+                                </View>
+                                <View style={styles.statBox}>
+                                    <Clock size={18} color={theme.colors.info} />
+                                    <Text style={styles.statLabel}>Payback Time</Text>
+                                    <Text style={styles.statValue}>
+                                        {selectedSchool.debt_years || '—'} years
                                     </Text>
                                 </View>
                             </View>
 
-                            <View style={styles.cooldownBlock}>
-                                <Clock color={theme.colors.secondary} size={20} />
-                                <Text style={styles.statLabel}>EST. COOLDOWN</Text>
-                                <Text style={[styles.statValue, { color: theme.colors.secondary }]}>
-                                    {selectedMission.debt_years} YEARS
-                                </Text>
+                            <View style={styles.modalActions}>
+                                <TouchableOpacity
+                                    style={styles.saveBtn}
+                                    onPress={handleSave}
+                                    disabled={saving}
+                                >
+                                    <Bookmark size={18} color={theme.colors.text} />
+                                    <Text style={styles.saveBtnText}>Save</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.detailsBtn}
+                                    onPress={() => {
+                                        setSelectedSchool(null);
+                                        handleViewDetails(selectedSchool);
+                                    }}
+                                >
+                                    <Text style={styles.detailsBtnText}>View Details</Text>
+                                </TouchableOpacity>
                             </View>
-
-                            <TouchableOpacity
-                                style={[styles.acceptButton, accepting && styles.disabledButton]}
-                                onPress={handleAccept}
-                                disabled={accepting}
-                            >
-                                {accepting ? (
-                                    <ActivityIndicator size="small" color="#000" />
-                                ) : (
-                                    <Text style={styles.acceptText}>ACCEPT MISSION</Text>
-                                )}
-                            </TouchableOpacity>
                         </View>
-                    </BlurView>
-                </View>
-            )}
+                    )}
+                </BlurView>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -308,201 +245,156 @@ const getStyles = (theme) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
-        padding: theme.spacing.m,
+        padding: 20,
     },
     center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerTitle: {
-        fontFamily: theme.fonts.heading,
-        color: theme.colors.primary,
-        fontSize: 24,
-        letterSpacing: 2,
-        marginTop: theme.spacing.s,
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16,
     },
-    headerSubtitle: {
-        fontFamily: theme.fonts.mono,
+    backBtn: {
+        padding: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 10,
+    },
+    label: {
+        fontSize: 13,
         color: theme.colors.textDim,
-        marginBottom: theme.spacing.l,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: theme.colors.text,
+    },
+    resultCount: {
+        fontSize: 14,
+        color: theme.colors.textDim,
+        marginBottom: 16,
     },
     list: {
-        gap: theme.spacing.s,
-        paddingBottom: 80, // Space for FAB
+        gap: 10,
+        paddingBottom: 20,
     },
     card: {
         flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: theme.colors.glass,
         borderWidth: 1,
         borderColor: theme.colors.glassBorder,
-        padding: theme.spacing.m,
-        borderRadius: theme.borderRadius.m,
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        padding: 14,
+        borderRadius: 12,
+        gap: 12,
     },
-    selectedCard: {
-        borderColor: theme.colors.tacticalGreen,
-        backgroundColor: 'rgba(0, 255, 153, 0.05)',
-    },
-    checkBox: {
-        marginRight: theme.spacing.m,
-    },
-    cardLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.m,
+    cardContent: {
         flex: 1,
-    },
-    schoolInfo: {
-        flex: 1,
-    },
-    tierBadge: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        borderWidth: 2,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.3)',
-    },
-    tierText: {
-        fontFamily: theme.fonts.heading,
-        fontSize: 20,
     },
     schoolName: {
-        fontFamily: theme.fonts.heading,
+        fontSize: 15,
+        fontWeight: '600',
         color: theme.colors.text,
-        fontSize: 16,
     },
-    score: {
-        fontFamily: theme.fonts.mono,
+    scoreText: {
+        fontSize: 12,
         color: theme.colors.textDim,
-        fontSize: 10,
+        marginTop: 2,
     },
-    detailText: {
-        fontFamily: theme.fonts.mono,
-        color: theme.colors.secondary,
+    priceText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: theme.colors.primary,
     },
     loadingText: {
-        fontFamily: theme.fonts.mono,
-        color: theme.colors.text,
-        marginTop: theme.spacing.m,
-        letterSpacing: 2,
+        color: theme.colors.textDim,
+        marginTop: 12,
     },
-
-    // FAB
-    fab: {
-        position: 'absolute',
-        bottom: 30,
-        alignSelf: 'center',
-        backgroundColor: theme.colors.tacticalGreen,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 30,
-        gap: 10,
-        elevation: 10,
-        shadowColor: theme.colors.tacticalGreen,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
-        zIndex: 100,
-    },
-    fabText: {
-        color: '#000',
-        fontFamily: theme.fonts.heading,
-        fontWeight: 'bold',
-        fontSize: 14,
-        letterSpacing: 1,
-    },
-
-    // Modal
-    modalContainer: {
+    modalOverlay: {
         flex: 1,
         justifyContent: 'center',
-        padding: theme.spacing.l,
-        backgroundColor: 'rgba(0,0,0,0.8)',
+        padding: 20,
     },
     modalContent: {
         backgroundColor: theme.colors.background,
+        borderRadius: 16,
+        padding: 20,
         borderWidth: 1,
         borderColor: theme.colors.glassBorder,
-        padding: theme.spacing.l,
-        borderRadius: theme.borderRadius.l,
-        gap: theme.spacing.l,
     },
     modalHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.glassBorder,
-        paddingBottom: theme.spacing.m,
+        gap: 12,
+        marginBottom: 20,
     },
-    damageTitle: {
-        fontFamily: theme.fonts.heading,
-        color: theme.colors.danger,
+    modalTitle: {
+        flex: 1,
         fontSize: 18,
-        letterSpacing: 1,
-    },
-    modalSchool: {
-        fontFamily: theme.fonts.heading,
+        fontWeight: '600',
         color: theme.colors.text,
-        fontSize: 24,
-        textAlign: 'center',
     },
-    statRow: {
+    statsGrid: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
+        gap: 12,
+        marginBottom: 20,
     },
-    statBlock: {
-        alignItems: 'center',
-        gap: theme.spacing.s,
-    },
-    cooldownBlock: {
-        alignItems: 'center',
-        gap: theme.spacing.s,
+    statBox: {
+        flex: 1,
         backgroundColor: theme.colors.glass,
-        padding: theme.spacing.m,
-        borderRadius: theme.borderRadius.m,
+        padding: 12,
+        borderRadius: 10,
+        alignItems: 'center',
+        gap: 4,
     },
     statLabel: {
-        fontFamily: theme.fonts.mono,
+        fontSize: 11,
         color: theme.colors.textDim,
-        fontSize: 10,
+        textAlign: 'center',
     },
     statValue: {
-        fontFamily: theme.fonts.heading,
+        fontSize: 14,
+        fontWeight: '600',
         color: theme.colors.text,
-        fontSize: 20,
+        textAlign: 'center',
     },
-    acceptButton: {
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    saveBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: 14,
+        borderRadius: 10,
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+    },
+    saveBtnText: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: theme.colors.text,
+    },
+    detailsBtn: {
+        flex: 2,
+        padding: 14,
+        borderRadius: 10,
         backgroundColor: theme.colors.primary,
-        padding: theme.spacing.m,
-        borderRadius: theme.borderRadius.s,
         alignItems: 'center',
     },
-    acceptText: {
-        fontFamily: theme.fonts.heading,
+    detailsBtnText: {
+        fontSize: 15,
+        fontWeight: '600',
         color: '#000',
-        fontSize: 16,
-    },
-    disabledButton: {
-        opacity: 0.5,
-    },
-    offlineBanner: {
-        backgroundColor: theme.colors.warning,
-        padding: 5,
-        alignItems: 'center',
-        marginBottom: 10,
-        borderRadius: 5,
-    },
-    offlineText: {
-        color: '#000',
-        fontFamily: theme.fonts.heading,
-        fontSize: 12,
-        fontWeight: 'bold',
     },
 });

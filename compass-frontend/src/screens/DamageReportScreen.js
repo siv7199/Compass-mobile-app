@@ -1,107 +1,103 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Modal } from 'react-native';
-import Slider from '@react-native-community/slider';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { API_URL } from '../config';
 import { useTheme } from '../theme/ThemeContext';
-import LoadoutPanel from '../components/LoadoutPanel';
-import HoloTutorial from '../components/HoloTutorial';
-import { ChevronRight } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context'; // Ensure safe area view is imported if used (it was used in early return but not imported in original file?? - Wait, I see it in usage but not import list in snippet? Ah, snippet has imports at top.)
-// Original snippet ended imports at line 8.
-// Wait, looking at original file lines 1-9:
-// 1: import ...
-// ...
-// It does NOT import SafeAreaView! But line 13 uses Is SafeAreaView! 
-// "13: <SafeAreaView style=..."
-// This file must have been crashing or I missed the import in the view?
-// Let me double check usage of SafeAreaView in DamageReportScreen.js view...
-// Line 13: <SafeAreaView ...
-// Imports lines 1-8 do NOT show SafeAreaView.
-// This means DamageReportScreen was likely broken or using a global? No, imports are explicit. 
-// I will ADD SafeAreaView to imports to be safe.
+import { ChevronLeft, ExternalLink, TrendingUp, DollarSign, Clock, Bookmark } from 'lucide-react-native';
 
-export default function DamageReportScreen({ route, navigation, showTutorial, setShowTutorial }) {
+export default function DamageReportScreen({ route, navigation, saveMission }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
 
     if (!route || !route.params) {
         return (
-            <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.tacticalBlack, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: theme.colors.textDim }}>NO BATTLE DATA FOUND.</Text>
-                <TouchableOpacity onPress={() => navigation && navigation.navigate('Lobby')}>
-                    <Text style={{ color: theme.colors.primary, marginTop: 20 }}>RETURN TO BASE</Text>
-                </TouchableOpacity>
+            <SafeAreaView style={styles.container}>
+                <View style={styles.center}>
+                    <Text style={{ color: theme.colors.textDim }}>No college data found.</Text>
+                    <TouchableOpacity onPress={() => navigation && navigation.goBack()}>
+                        <Text style={{ color: theme.colors.primary, marginTop: 20 }}>Go Back</Text>
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
         );
     }
+
     const { school, profile } = route.params;
 
-    // Loadout State (Financial Aid Modifiers)
-    const [scholarships, setScholarships] = useState(0);
-    const [familyContribution, setFamilyContribution] = useState(0);
-    const [workStudy, setWorkStudy] = useState(0);
-    // Removed Scroll Locking to prevent stuck state
-    // Tutorial State is now controlled by Props from App.js
-
-    // Boss State (Job Market Data)
-    const [bossStats, setBossStats] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    // Validated Data from Previous Screen
-    // GAME BALANCE: Use Sticker Price * 4 (Total Degree Cost) if available.
-    // This allows the user to manually apply scholarships (reducing it to Net Price).
+    // Financial calculations
     const pricePerYear = school.sticker_price || school.net_price || 15000;
-    const baseDebt = (pricePerYear * 4) || 60000;
+    const totalDegreeCost = pricePerYear * 4;
     const baseSalary = school.earnings || 50000;
 
-    // Animation
-    const loadoutOpacity = useState(new Animated.Value(0))[0];
+    // Career data state
+    const [careerData, setCareerData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [saved, setSaved] = useState(false);
 
-    useEffect(() => {
-        // Fetch Boss Stats (BLS Data)
-        fetchBossData();
+    // Offline fallback data
+    // Offline data for all supported careers
+    const OFFLINE_DATA = {
+        // Business & Finance
+        "11-1011": { title: "Chief Executive", annual_mean_wage: 258900, projected_growth: -8.0 },
+        "11-2021": { title: "Marketing Manager", annual_mean_wage: 157620, projected_growth: 6.0 },
+        "11-3031": { title: "Financial Manager", annual_mean_wage: 156100, projected_growth: 16.0 },
+        "11-1021": { title: "General Manager", annual_mean_wage: 101270, projected_growth: 4.0 },
+        "11-2022": { title: "Sales Manager", annual_mean_wage: 140600, projected_growth: 4.0 },
+        "11-3121": { title: "HR Manager", annual_mean_wage: 136350, projected_growth: 5.0 },
+        "13-1111": { title: "Management Analyst", annual_mean_wage: 99410, projected_growth: 10.0 },
+        "13-2011": { title: "Accountant", annual_mean_wage: 86740, projected_growth: 4.0 },
+        "23-1011": { title: "Lawyer", annual_mean_wage: 145760, projected_growth: 8.0 },
+        "13-2051": { title: "Financial Analyst", annual_mean_wage: 99890, projected_growth: 8.0 },
 
-        // Animate Loadout Panel
-        Animated.timing(loadoutOpacity, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-        }).start();
-    }, []);
-
-    // Offline SOC Data Map (Fallback)
-    const OFFLINE_BOSS_DATA = {
-        // Engineer
+        // Engineering & Tech
         "15-1252": { title: "Software Developer", annual_mean_wage: 132270, projected_growth: 25.0 },
         "17-2051": { title: "Civil Engineer", annual_mean_wage: 95890, projected_growth: 5.0 },
         "17-2141": { title: "Mechanical Engineer", annual_mean_wage: 100820, projected_growth: 10.0 },
-        "17-2071": { title: "Electrical Engineer", annual_mean_wage: 106950, projected_growth: 5.0 },
+        "17-2071": { title: "Electrical Engineer", annual_mean_wage: 109090, projected_growth: 5.0 },
         "17-2011": { title: "Aerospace Engineer", annual_mean_wage: 130720, projected_growth: 6.0 },
-        // Healer
+        "15-2051": { title: "Data Scientist", annual_mean_wage: 108020, projected_growth: 35.0 },
+        "15-1211": { title: "Systems Analyst", annual_mean_wage: 103800, projected_growth: 10.0 },
+        "17-2041": { title: "Chemical Engineer", annual_mean_wage: 112100, projected_growth: 8.0 },
+        "17-2081": { title: "Environmental Eng", annual_mean_wage: 100090, projected_growth: 6.0 },
+        "17-2031": { title: "Biomedical Eng", annual_mean_wage: 100730, projected_growth: 5.0 },
+
+        // Healthcare
+        "29-1248": { title: "Surgeon", annual_mean_wage: 350000, projected_growth: 3.0 },
         "29-1141": { title: "Registered Nurse", annual_mean_wage: 86070, projected_growth: 6.0 },
-        "29-1021": { title: "Dentist", annual_mean_wage: 191760, projected_growth: 4.0 },
-        "29-1171": { title: "Nurse Practitioner", annual_mean_wage: 126260, projected_growth: 45.0 },
-        // Leader
-        "11-1011": { title: "Chief Executive", annual_mean_wage: 258900, projected_growth: -8.0 },
-        "11-2021": { title: "Marketing Manager", annual_mean_wage: 157620, projected_growth: 6.0 },
-        "23-1011": { title: "Lawyer", annual_mean_wage: 145760, projected_growth: 8.0 },
-        // Creative
+        "29-1021": { title: "Dentist", annual_mean_wage: 175000, projected_growth: 4.0 },
+        "29-1051": { title: "Pharmacist", annual_mean_wage: 136030, projected_growth: 3.0 },
+        "29-1171": { title: "Nurse Practitioner", annual_mean_wage: 126260, projected_growth: 38.0 },
+        "29-1123": { title: "Physical Therapist", annual_mean_wage: 99710, projected_growth: 15.0 },
+        "29-1071": { title: "Physician Assistant", annual_mean_wage: 130020, projected_growth: 27.0 },
+        "19-1042": { title: "Medical Scientist", annual_mean_wage: 100890, projected_growth: 10.0 },
+        "29-1041": { title: "Optometrist", annual_mean_wage: 129280, projected_growth: 9.0 },
+        "19-3031": { title: "Psychologist", annual_mean_wage: 92740, projected_growth: 6.0 },
+
+        // Arts & Media
         "27-1011": { title: "Art Director", annual_mean_wage: 105130, projected_growth: 6.0 },
-        "27-1024": { title: "Graphic Designer", annual_mean_wage: 57990, projected_growth: 3.0 }
+        "27-1024": { title: "Graphic Designer", annual_mean_wage: 64500, projected_growth: 3.0 },
+        "27-3041": { title: "Editor", annual_mean_wage: 76400, projected_growth: -4.0 },
+        "27-1014": { title: "Multimedia Artist", annual_mean_wage: 89000, projected_growth: 8.0 },
+        "27-2012": { title: "Producer", annual_mean_wage: 85320, projected_growth: 7.0 },
+        "27-3031": { title: "PR Specialist", annual_mean_wage: 73250, projected_growth: 6.0 },
+        "27-3043": { title: "Writer", annual_mean_wage: 78060, projected_growth: 4.0 },
+        "17-1011": { title: "Architect", annual_mean_wage: 93310, projected_growth: 5.0 },
+        "27-1025": { title: "Interior Designer", annual_mean_wage: 64130, projected_growth: 4.0 },
+        "15-1255": { title: "UX Designer", annual_mean_wage: 105000, projected_growth: 16.0 }
     };
 
-    const fetchBossData = async () => {
-        try {
-            // Use the specific Selected Career SOC, or fallback to Major, or default.
-            const socCode = profile?.targetCareer || profile?.major || "15-1252";
-            console.log(`Fighting Boss (Fetching Data) for SOC: ${socCode}`);
+    useEffect(() => {
+        fetchCareerData();
+    }, []);
 
-            // Try API with 3s timeout
+    const fetchCareerData = async () => {
+        try {
+            const socCode = profile?.targetCareer || "15-1252";
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-            const response = await fetch(`${API_URL}/api/boss`, {
+            const response = await fetch(`${API_URL}/api/career`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ soc_code: socCode }),
@@ -109,129 +105,142 @@ export default function DamageReportScreen({ route, navigation, showTutorial, se
             });
             clearTimeout(timeoutId);
 
-            if (!response.ok) throw new Error("Server Response Error");
-
+            if (!response.ok) throw new Error("Server error");
             const data = await response.json();
-            setBossStats(data);
+            setCareerData(data);
         } catch (error) {
-            console.warn("Boss Fight Network Error. Deploying Offline Tactics.", error);
-
-            const socCode = profile?.targetCareer || profile?.major || "15-1252";
-            const fallback = OFFLINE_BOSS_DATA[socCode] || {
-                title: profile?.careerName || "Unknown Specialist",
+            console.warn("Using offline data:", error.message);
+            const socCode = profile?.targetCareer || "15-1252";
+            const fallback = OFFLINE_DATA[socCode] || {
+                title: profile?.careerName || "General Career",
                 annual_mean_wage: 65000,
-                projected_growth: 4.0,
-                source: "Offline Database"
+                projected_growth: 4.0
             };
-
-            setBossStats(fallback);
+            setCareerData(fallback);
         } finally {
             setLoading(false);
         }
     };
 
-    // --- THE MATH ENGINE ---
-    // Recalculate Cooldown (ROI Years) in real-time
-    const calculateCooldown = () => {
-        // 1. REDUCE THE ENEMY HP (DEBT)
-        // Work Study acts like a scholarship: it lowers the amount you need to borrow.
-        const effectiveDebt = Math.max(0, baseDebt - scholarships - familyContribution - workStudy);
-
-        // 2. CALCULATE YOUR WEAPON DAMAGE (REPAYMENT POWER)
-        // Use the Boss Salary if available, otherwise base salary.
-        const salary = bossStats ? bossStats.annual_mean_wage : baseSalary;
-
-        // Use the "20% Rule" (Standard banking logic):
-        // A user can realistically put 20% of their gross income toward debt.
-        // This prevents the "negative income" bug for lower salaries.
-        const annualRepayment = salary * 0.20;
-
-        if (annualRepayment <= 0) return 99.9; // Safety check
-
-        // 3. RESULT
-        const years = effectiveDebt / annualRepayment;
-        return years.toFixed(1);
+    // Calculate payback period
+    const calculatePayback = () => {
+        const salary = careerData ? careerData.annual_mean_wage : baseSalary;
+        const annualRepayment = salary * 0.20; // 20% of income toward loans
+        if (annualRepayment <= 0) return 99;
+        return (totalDegreeCost / annualRepayment).toFixed(1);
     };
 
-    const cooldown = calculateCooldown();
-    const effectiveSalary = bossStats ? bossStats.annual_mean_wage : baseSalary;
-    const effectiveDebt = Math.max(0, baseDebt - scholarships - familyContribution - workStudy);
+    const paybackYears = calculatePayback();
+    const effectiveSalary = careerData ? careerData.annual_mean_wage : baseSalary;
+
+    const handleSave = () => {
+        if (!saveMission) return;
+        saveMission({
+            schoolName: school.school_name,
+            tier: school.ranking,
+            netPrice: school.net_price,
+            cooldown: paybackYears,
+            careerName: profile?.careerName,
+            date: new Date().toLocaleDateString()
+        });
+        setSaved(true);
+    };
+
+    const handleVisitWebsite = () => {
+        const searchQuery = encodeURIComponent(school.school_name + ' admissions');
+        const url = `https://www.google.com/search?q=${searchQuery}`;
+        Linking.openURL(url);
+    };
 
     return (
-        <View style={styles.container}>
-            {/* HOLO TUTORIAL OVERLAY */}
-            <HoloTutorial visible={showTutorial} onClose={() => setShowTutorial(false)} />
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-            >
-
-                {/* 1. THE BOSS CARD (Job Market) */}
-                <View style={styles.bossCard}>
-                    <BlurView intensity={80} style={styles.glass}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 10, marginRight: 10, borderWidth: 1, borderColor: theme.colors.glassBorder, borderRadius: 8 }}>
-                                <ChevronRight style={{ transform: [{ rotate: '180deg' }] }} color={theme.colors.secondary} size={20} />
-                            </TouchableOpacity>
-                            <Text style={[styles.header, { marginBottom: 0 }]}>TARGET LOCKED</Text>
-                        </View>
-
-                        {loading ? (
-                            <Text style={styles.loading}>Scanning Market Data...</Text>
-                        ) : (
-                            <>
-                                <Text style={styles.bossTitle}>
-                                    {bossStats.title || profile?.careerName || "Unknown Target"}
-                                </Text>
-                                {/* DEBUG LINE REMOVED */}
-                                <View style={styles.statRow}>
-                                    <View style={styles.statBox}>
-                                        <Text style={styles.label}>LOOT</Text>
-                                        <Text style={styles.gold}>${effectiveSalary.toLocaleString()}</Text>
-                                    </View>
-                                    <View style={styles.statBox}>
-                                        <Text style={styles.label}>MARKET OUTLOOK</Text>
-                                        <Text style={bossStats.projected_growth >= 0 ? styles.green : styles.red}>
-                                            {bossStats.projected_growth}%
-                                        </Text>
-                                    </View>
-                                </View>
-                            </>
-                        )}
-                    </BlurView>
+        <SafeAreaView style={styles.container}>
+            <ScrollView contentContainerStyle={styles.scroll}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <ChevronLeft color={theme.colors.text} size={24} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.schoolName}>{school.school_name}</Text>
+                        <Text style={styles.tierLabel}>Tier {school.ranking}</Text>
+                    </View>
                 </View>
 
-                {/* 2. THE LOADOUT PANEL (Financial Aid) */}
-                <Animated.View style={[styles.loadoutPanel, { opacity: loadoutOpacity }]}>
-                    <LoadoutPanel
-                        scholarships={scholarships} setScholarships={setScholarships}
-                        familyContribution={familyContribution} setFamilyContribution={setFamilyContribution}
-                        workStudy={workStudy} setWorkStudy={setWorkStudy}
-                    />
-                </Animated.View>
+                {/* Career Outlook Card */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Career Outlook</Text>
+                    {loading ? (
+                        <ActivityIndicator color={theme.colors.primary} />
+                    ) : (
+                        <View style={styles.statsRow}>
+                            <View style={styles.statBox}>
+                                <DollarSign size={18} color={theme.colors.primary} />
+                                <Text style={styles.statLabel}>Avg Salary</Text>
+                                <Text style={styles.statValue}>${effectiveSalary.toLocaleString()}</Text>
+                            </View>
+                            <View style={styles.statBox}>
+                                <TrendingUp size={18} color={careerData?.projected_growth >= 0 ? theme.colors.primary : theme.colors.danger} />
+                                <Text style={styles.statLabel}>Job Growth</Text>
+                                <Text style={[styles.statValue, { color: careerData?.projected_growth >= 0 ? theme.colors.primary : theme.colors.danger }]}>
+                                    {careerData?.projected_growth || 0}%
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
 
-                {/* 3. DAMAGE REPORT (Results) */}
-                <View style={styles.damageReport}>
-                    <Text style={[styles.damageLabel, { color: theme.colors.text }]}>COOLDOWN</Text>
-                    <Text style={styles.damageValue}>{cooldown} YEARS</Text>
-                    <Text style={styles.subtext}>
-                        To reduce Remaining HP (${effectiveDebt.toLocaleString()}) to zero
+                {/* Cost Analysis Card */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Cost Analysis</Text>
+                    <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>Annual Cost</Text>
+                        <Text style={styles.costValue}>${pricePerYear.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>4-Year Total</Text>
+                        <Text style={styles.costValue}>${totalDegreeCost.toLocaleString()}</Text>
+                    </View>
+                    <View style={[styles.costRow, styles.highlightRow]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Clock size={16} color={theme.colors.secondary} />
+                            <Text style={styles.costLabel}>Payback Period</Text>
+                        </View>
+                        <Text style={[styles.costValue, { color: theme.colors.secondary }]}>{paybackYears} years</Text>
+                    </View>
+                </View>
+
+                {/* ROI Summary */}
+                <View style={[styles.card, styles.roiCard]}>
+                    <Text style={styles.roiTitle}>Return on Investment</Text>
+                    <Text style={styles.roiValue}>
+                        {parseFloat(paybackYears) < 5 ? '⭐ Excellent' :
+                            parseFloat(paybackYears) < 8 ? '✓ Good' :
+                                parseFloat(paybackYears) < 12 ? '⚠ Moderate' : '⛔ High Risk'}
                     </Text>
-                    <Text style={[styles.label, { marginTop: 10, color: theme.colors.textDim }]}>ROI RATING: {school.ranking || 'N/A'}-TIER</Text>
+                    <Text style={styles.roiDesc}>
+                        Based on paying 20% of salary toward loans after graduation
+                    </Text>
+                </View>
 
+                {/* Actions */}
+                <View style={styles.actions}>
                     <TouchableOpacity
-                        style={styles.deployButton}
-                        onPress={() => navigation.navigate('MissionLogScreen', {
-                            debt: effectiveDebt,
-                            salary: effectiveSalary,
-                            schoolName: school.school_name
-                        })}
+                        style={[styles.actionBtn, saved && styles.actionBtnSaved]}
+                        onPress={handleSave}
+                        disabled={saved}
                     >
-                        <Text style={styles.deployText}>EXECUTE MISSION</Text>
+                        <Bookmark size={18} color={saved ? '#000' : theme.colors.text} fill={saved ? '#000' : 'transparent'} />
+                        <Text style={[styles.actionBtnText, saved && { color: '#000' }]}>
+                            {saved ? 'Saved!' : 'Save College'}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.websiteBtn} onPress={handleVisitWebsite}>
+                        <ExternalLink size={16} color={theme.colors.primary} />
+                        <Text style={styles.websiteBtnText}>Visit Website</Text>
                     </TouchableOpacity>
                 </View>
-
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -240,71 +249,155 @@ const getStyles = (theme) => StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.background,
     },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     scroll: {
         padding: 20,
-        paddingTop: 50,
-    },
-    glass: {
-        padding: 20,
-        borderRadius: 15,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    bossCard: {
-        marginBottom: 30,
+        gap: 16,
     },
     header: {
-        color: theme.colors.secondary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 8,
+    },
+    backBtn: {
+        padding: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 10,
+    },
+    schoolName: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: theme.colors.text,
+    },
+    tierLabel: {
+        fontSize: 13,
+        color: theme.colors.textDim,
+    },
+    card: {
+        backgroundColor: theme.colors.glass,
+        borderRadius: 14,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+    },
+    cardTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: theme.colors.textDim,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 14,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    statBox: {
+        flex: 1,
+        backgroundColor: theme.colors.background,
+        padding: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        gap: 6,
+    },
+    statLabel: {
         fontSize: 12,
-        fontWeight: '900',
-        letterSpacing: 2,
-        marginBottom: 10,
+        color: theme.colors.textDim,
     },
-    bossTitle: {
-        color: theme.colors.text,
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 15,
-        fontFamily: theme.fonts.heading,
-    },
-    // ...
-    sectionTitle: {
-        color: theme.colors.text,
+    statValue: {
         fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 20,
-        borderLeftWidth: 3,
-        borderLeftColor: theme.colors.neonGold,
-        paddingLeft: 10,
-        fontFamily: theme.fonts.heading,
+        fontWeight: '700',
+        color: theme.colors.text,
     },
-    // ...
-    damageValue: {
-        color: theme.colors.primary, // Changed from text to primary for high visibility in Dark Mode
-        fontSize: 42,
-        fontWeight: '900',
-        textShadowColor: theme.colors.tacticalGreen, // Matched shadow to primary
-        textShadowRadius: 10,
-        fontFamily: theme.fonts.heading,
+    costRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.glassBorder,
     },
-    subtext: {
-        color: '#666',
-        fontSize: 12,
-        marginBottom: 30,
-        fontFamily: theme.fonts.mono,
+    highlightRow: {
+        borderBottomWidth: 0,
+        paddingTop: 14,
     },
-    deployButton: {
-        backgroundColor: theme.colors.secondary,
-        paddingVertical: 15,
-        paddingHorizontal: 40,
-        borderRadius: 30,
+    costLabel: {
+        fontSize: 15,
+        color: theme.colors.text,
     },
-    deployText: {
-        color: '#000',
-        fontWeight: 'bold',
+    costValue: {
         fontSize: 16,
-        fontFamily: theme.fonts.heading,
+        fontWeight: '600',
+        color: theme.colors.text,
+    },
+    roiCard: {
+        alignItems: 'center',
+        paddingVertical: 24,
+    },
+    roiTitle: {
+        fontSize: 12,
+        color: theme.colors.textDim,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 8,
+    },
+    roiValue: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: theme.colors.primary,
+        marginBottom: 8,
+    },
+    roiDesc: {
+        fontSize: 12,
+        color: theme.colors.textDim,
+        textAlign: 'center',
+    },
+    actions: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 8,
+    },
+    actionBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: 14,
+        borderRadius: 12,
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+    },
+    actionBtnSaved: {
+        backgroundColor: theme.colors.primary,
+        borderColor: theme.colors.primary,
+    },
+    actionBtnText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: theme.colors.text,
+    },
+    websiteBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: theme.colors.primary,
+    },
+    websiteBtnText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: theme.colors.primary,
     },
 });

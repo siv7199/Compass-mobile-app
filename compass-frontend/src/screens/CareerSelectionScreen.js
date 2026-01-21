@@ -6,7 +6,6 @@ import { ChevronRight, ArrowUpRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { API_URL } from '../config';
 import axios from 'axios';
-import HoloTutorial from '../components/HoloTutorial';
 
 // Add new props
 export default function CareerSelectionScreen({ navigation, route, showTutorial, closeTutorial }) {
@@ -159,8 +158,6 @@ export default function CareerSelectionScreen({ navigation, route, showTutorial,
 
     return (
         <SafeAreaView style={styles.container}>
-            <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="CAREER" />
-
             <View style={styles.header}>
                 <TouchableOpacity
                     onPress={() => {

@@ -1,76 +1,77 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { ChevronLeft, HelpCircle, Shield, Target, Zap, Clock, Heart, Briefcase } from 'lucide-react-native';
-
-const DICTIONARY = [
-    { term: "BOSS HP", def: "Total Cost of Attendance (Tuition + Room + Board).", icon: Target },
-    { term: "LOOT DROP", def: "Starting Salary for the selected major.", icon: Zap },
-    { term: "COOLDOWN", def: "Time (Years) to pay off student debt.", icon: Clock },
-    { term: "TACTICAL SCORE", def: "Efficiency Metric. High Score = Good Value.", icon: Shield },
-    { term: "FIREPOWER", def: "Your Earning Potential based on Major Selection.", icon: Zap },
-    { term: "CLASS", def: "Your chosen Major (Engineer, Healer, Leader, Creative).", icon: Briefcase },
-    { term: "BASE STATS", def: "Your GPA (INT) and Test Scores used for admission calculations.", icon: Shield },
-    { term: "INTEL", def: "Data gathered on a University Target.", icon: Briefcase },
-    { term: "PVP", def: "Player vs Player Simulation. Comparing two colleges head-to-head.", icon: Zap },
-    { term: "SIDE OPS", def: "Work Study / Part-Time Jobs.", icon: Briefcase },
-    { term: "SQUAD SUPPORT", def: "Family Contribution / Savings.", icon: Heart },
-    { term: "ROI", def: "Return on Investment. The ratio of Salary to Cost.", icon: Zap },
-];
+import { ChevronLeft, HelpCircle, DollarSign, GraduationCap, TrendingUp, Clock, Bookmark, Search } from 'lucide-react-native';
 
 const FAQS = [
-    { q: "HOW DOES PVP WORK?", a: "Select a 'PvP Target' from the Map to compare it against your current Mission. Green stats indicate an advantage." },
-    { q: "WHAT DO SIDE OPS DO?", a: "Allocating time to Work Study reduces your total debt (Boss HP) but may impact grades (hidden stat)." },
-    { q: "HOW IS COOLDOWN CALCULATED?", a: "It assumes you pay 20% of your monthly Discretionary Income towards debt. Faster payment = Lower Cooldown." },
-    { q: "WHERE DOES DATA COME FROM?", a: "National Center for Education Statistics (NCES) & Bureau of Labor Statistics (BLS)." },
-    { q: "CAN I CHANGE MY MAJOR?", a: "Yes. Return to Lobby to re-select your Class." },
-    { q: "WHY CAN'T I USE ACT SCORES?", a: "System currently calibrated for SAT frequencies only." },
-    { q: "WHAT IS ROI?", a: "Capital Efficiency based on Market Value vs Acquisition Cost." },
+    {
+        q: "What is Annual Cost?",
+        a: "The yearly cost to attend (tuition, room, board, fees) after financial aid. This is what you'd actually pay each year.",
+        icon: DollarSign
+    },
+    {
+        q: "What is Payback Period?",
+        a: "The estimated years to pay off student loans after graduation, assuming 20% of income goes to payments.",
+        icon: Clock
+    },
+    {
+        q: "How is ROI calculated?",
+        a: "Return on Investment compares your expected salary to your total college costs. Higher ROI = better value.",
+        icon: TrendingUp
+    },
+    {
+        q: "Where does the data come from?",
+        a: "Official sources: National Center for Education Statistics (NCES) for college costs, Bureau of Labor Statistics (BLS) for salary data.",
+        icon: GraduationCap
+    },
+    {
+        q: "How do I save a college?",
+        a: "Tap on any college in your results, then click 'Save College' to add it to your portfolio.",
+        icon: Bookmark
+    },
+    {
+        q: "Can I compare different careers?",
+        a: "Yes! When entering your profile, select different career paths to see how salaries affect your ROI.",
+        icon: Search
+    },
+    {
+        q: "Why use Unweighted GPA?",
+        a: "Colleges compare applicants using unweighted GPA (0-4.0 scale) for consistency. Weighted GPAs vary by school.",
+        icon: GraduationCap
+    },
+    {
+        q: "Why can't I use ACT scores?",
+        a: "The system currently uses SAT data for admission estimates. ACT support is planned for a future update.",
+        icon: HelpCircle
+    },
 ];
 
 export default function HelpScreen({ navigation }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.navigate('Profile')} accessibilityLabel="Go Back">
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ChevronLeft color={theme.colors.text} size={24} />
                 </TouchableOpacity>
-                <Text style={styles.title}>FIELD MANUAL</Text>
+                <Text style={styles.title}>Help & FAQ</Text>
             </View>
 
-            <ScrollView style={styles.content}>
-                {/* DICTIONARY */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Briefcase color={theme.colors.primary} size={20} />
-                        <Text style={styles.sectionTitle}>DICTIONARY</Text>
-                    </View>
-                    {DICTIONARY.map((item, index) => (
-                        <View key={index} style={styles.itemBox}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                                <item.icon size={16} color={theme.colors.textDim} />
-                                <Text style={styles.term}>{item.term}</Text>
+            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+                {FAQS.map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                        <View key={index} style={styles.faqCard}>
+                            <View style={styles.faqHeader}>
+                                <Icon size={18} color={theme.colors.primary} />
+                                <Text style={styles.question}>{item.q}</Text>
                             </View>
-                            <Text style={styles.def}>{item.def}</Text>
+                            <Text style={styles.answer}>{item.a}</Text>
                         </View>
-                    ))}
-                </View>
-
-                {/* FAQS */}
-                <View style={[styles.section, { marginBottom: 40 }]}>
-                    <View style={styles.sectionHeader}>
-                        <HelpCircle color={theme.colors.secondary} size={20} />
-                        <Text style={[styles.sectionTitle, { color: theme.colors.secondary }]}>F.A.Q.</Text>
-                    </View>
-                    {FAQS.map((item, index) => (
-                        <View key={index} style={styles.itemBox}>
-                            <Text style={styles.q}>{item.q}</Text>
-                            <Text style={styles.def}>{item.a}</Text>
-                        </View>
-                    ))}
-                </View>
+                    );
+                })}
             </ScrollView>
         </SafeAreaView>
     );
@@ -84,56 +85,45 @@ const getStyles = (theme) => StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: theme.spacing.m,
-        gap: theme.spacing.m,
+        padding: 16,
+        gap: 12,
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.glassBorder,
+    },
+    backBtn: {
+        padding: 4,
     },
     title: {
-        fontFamily: theme.fonts.heading,
-        color: theme.colors.text,
         fontSize: 20,
+        fontWeight: '600',
+        color: theme.colors.text,
     },
     content: {
-        padding: theme.spacing.m,
+        padding: 16,
     },
-    section: {
-        marginBottom: theme.spacing.l,
+    faqCard: {
+        backgroundColor: theme.colors.glass,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
     },
-    sectionHeader: {
+    faqHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.s,
-        marginBottom: theme.spacing.m,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.glassBorder,
-        paddingBottom: 5,
+        gap: 10,
+        marginBottom: 8,
     },
-    sectionTitle: {
-        fontFamily: theme.fonts.heading,
-        color: theme.colors.primary,
-        fontSize: 16,
-    },
-    itemBox: {
-        backgroundColor: theme.colors.glass,
-        padding: theme.spacing.m,
-        marginBottom: theme.spacing.s,
-        borderRadius: theme.borderRadius.s,
-    },
-    term: {
-        fontFamily: theme.fonts.heading,
+    question: {
+        fontSize: 15,
+        fontWeight: '600',
         color: theme.colors.text,
+        flex: 1,
+    },
+    answer: {
         fontSize: 14,
-    },
-    def: {
-        fontFamily: theme.fonts.body,
         color: theme.colors.textDim,
-        fontSize: 12,
+        lineHeight: 20,
     },
-    q: {
-        fontFamily: theme.fonts.heading,
-        color: theme.colors.text,
-        fontSize: 12,
-        marginBottom: 4,
-    }
 });

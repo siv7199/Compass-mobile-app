@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-nati
 import { LineChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import HoloTutorial from '../components/HoloTutorial';
 
 export default function MissionLogScreen({ route, navigation, saveMission, showTutorial, closeTutorial }) {
     const { theme } = useTheme();
@@ -29,7 +28,6 @@ export default function MissionLogScreen({ route, navigation, saveMission, showT
 
     return (
         <SafeAreaView style={styles.container}>
-            <HoloTutorial visible={showTutorial} onClose={closeTutorial} scenario="MISSION_LOG" />
             <View style={styles.header}>
                 <Text style={styles.title}>MISSION COMPLETE</Text>
                 <Text style={styles.subtitle}>{schoolName}</Text>
