@@ -83,7 +83,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
 
     // Animate new messages
     const addMessage = (text, isUser = false, stepId = null) => {
-        setMessages(prev => [...prev, { text, isUser, id: Date.now(), stepId }]);
+        setMessages(prev => [...prev, { text, isUser, id: Date.now() + Math.random(), stepId }]);
         setTimeout(() => {
             scrollRef.current?.scrollToEnd({ animated: true });
         }, 100);
@@ -98,9 +98,9 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                 setTimeout(() => {
                     addMessage("What's your GPA? (Use your unweighted GPA on a 0-4.0 scale)");
                     setCurrentStep(1);
-                }, 800);
-            }, 800);
-        }, 500);
+                }, 400);
+            }, 600);
+        }, 300);
     }, []);
 
     const handleGPASubmit = () => {
@@ -125,8 +125,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             setTimeout(() => {
                 addMessage("What's your SAT score? (400-1600, or type 'skip' if you haven't taken it)");
                 setCurrentStep(2);
-            }, 600);
-        }, 500);
+            }, 400);
+        }, 300);
     };
 
     const handleSATSubmit = () => {
@@ -148,9 +148,9 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setInputValue('');
 
         setTimeout(() => {
-            addMessage("Now, what career area interests you most?");
+            addMessage("Now, what career area interests you most? (Scroll to see more options)");
             setCurrentStep(3);
-        }, 500);
+        }, 300);
     };
 
     const handleCareerSelect = (career) => {
@@ -158,9 +158,9 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setSelectedCategory(career.id);
 
         setTimeout(() => {
-            addMessage(`Which specific role in ${career.name} interests you?`);
+            addMessage(`Which specific role in ${career.name} interests you? (Scroll list to view all)`);
             setCurrentStep(3.5); // Intermediate step for specific career
-        }, 500);
+        }, 300);
     };
 
     const handleSpecificCareerSelect = (specificCareer) => {
@@ -179,8 +179,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             setTimeout(() => {
                 addMessage("Last question: What's the maximum you can spend per year on college? (Enter a number like 30000)");
                 setCurrentStep(4);
-            }, 600);
-        }, 500);
+            }, 400);
+        }, 300);
     };
 
     const handleBudgetSubmit = () => {
@@ -200,8 +200,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             setTimeout(() => {
                 addMessage("Let me find colleges that match your profile...");
                 setCurrentStep(5);
-            }, 600);
-        }, 500);
+            }, 500);
+        }, 300);
     };
 
     const handleSubmit = () => {
@@ -329,16 +329,23 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                     value={inputValue}
                     onChangeText={setInputValue}
                     placeholder={
-                        currentStep === 1 ? "e.g., 3.5 (Press Return)" :
+                        currentStep === 1 ? "e.g., 3.5" :
                             currentStep === 2 ? "e.g., 1200 or 'skip'" :
                                 currentStep === 4 ? "e.g., 30000" : ""
                     }
                     placeholderTextColor={theme.colors.textDim}
                     keyboardType={currentStep === 2 ? "default" : "numeric"}
                     onSubmitEditing={handleSubmit}
-                    returnKeyType="send"
+                    returnKeyType="default"
                     blurOnSubmit={false}
                 />
+                <TouchableOpacity
+                    style={[styles.sendButton, !inputValue.trim() && { opacity: 0.5 }]}
+                    onPress={handleSubmit}
+                    disabled={!inputValue.trim()}
+                >
+                    <Send size={20} color="#000" />
+                </TouchableOpacity>
             </View>
         );
     };
@@ -389,7 +396,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                                     style={styles.editButton}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 >
-                                    <Edit2 size={12} color="rgba(0,0,0,0.4)" />
+                                    <Edit2 size={16} color="#000" />
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -454,8 +461,14 @@ const getStyles = (theme) => StyleSheet.create({
         gap: 8,
     },
     editButton: {
-        marginLeft: 4,
-        padding: 4,
+        marginLeft: 8,
+        padding: 8,
+        backgroundColor: theme.colors.primary, // Solid Green
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     messageText: {
         fontSize: 16,
@@ -490,11 +503,9 @@ const getStyles = (theme) => StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: theme.colors.glass,
+        backgroundColor: theme.colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.glassBorder,
     },
     careerGrid: {
         flexDirection: 'row',

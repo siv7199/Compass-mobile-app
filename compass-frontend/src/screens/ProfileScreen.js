@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { Moon, HelpCircle, Trash2, ChevronRight } from 'lucide-react-native';
 
-export default function ProfileScreen({ navigation, resetTutorial, clearMissions }) {
+export default function ProfileScreen({ navigation, resetTutorial, clearMissions, resetApp }) {
     const { theme, toggleTheme, isDarkMode } = useTheme();
     const styles = getStyles(theme);
 
@@ -17,9 +17,9 @@ export default function ProfileScreen({ navigation, resetTutorial, clearMissions
                 {
                     text: "Clear",
                     style: "destructive",
+                    style: "destructive",
                     onPress: () => {
-                        clearMissions && clearMissions();
-                        Alert.alert("Done", "All data has been cleared.");
+                        resetApp && resetApp(); // This clears data AND resets navigation
                     }
                 }
             ]
@@ -42,8 +42,6 @@ export default function ProfileScreen({ navigation, resetTutorial, clearMissions
                             <Text style={styles.settingText}>Dark Mode</Text>
                         </View>
                         <Switch
-                            trackColor={{ false: theme.colors.glassBorder, true: theme.colors.primary }}
-                            thumbColor={'#fff'}
                             value={isDarkMode}
                             onValueChange={toggleTheme}
                         />

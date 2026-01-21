@@ -100,13 +100,20 @@ function App() {
     );
   }
 
+  const resetApp = () => {
+    setSavedColleges([]);
+    setUserProfile(null);
+    setAppState('welcome');
+  };
+
   const appContext = {
     userProfile,
     savedColleges,
     saveCollege,
     deleteCollege,
     toggleFavorite,
-    clearColleges
+    clearColleges,
+    resetApp
   };
 
   return (
@@ -213,6 +220,8 @@ function ExploreStack({ appContext }) {
             showTutorial={false}
             closeTutorial={() => { }}
             saveMission={appContext.saveCollege}
+            savedMissions={appContext.savedColleges}
+            deleteMission={appContext.deleteCollege}
             showPvPTutorial={false}
             closePvPTutorial={() => { }}
             showPreviewTutorial={false}
@@ -225,8 +234,9 @@ function ExploreStack({ appContext }) {
           <DamageReportScreen
             {...props}
             showTutorial={false}
-            setShowTutorial={() => { }}
             saveMission={appContext.saveCollege}
+            savedMissions={appContext.savedColleges}
+            deleteMission={appContext.deleteCollege}
           />
         )}
       </Stack.Screen>
@@ -258,6 +268,17 @@ function SavedStack({ appContext }) {
           />
         )}
       </Stack.Screen>
+      <Stack.Screen name="CostAnalysis">
+        {(props) => (
+          <DamageReportScreen
+            {...props}
+            showTutorial={false}
+            saveMission={appContext.saveCollege}
+            savedMissions={appContext.savedColleges}
+            deleteMission={appContext.deleteCollege}
+          />
+        )}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }
@@ -275,6 +296,7 @@ function ProfileStack({ appContext }) {
             showTutorial={false}
             closeTutorial={() => { }}
             clearMissions={appContext.clearColleges}
+            resetApp={appContext.resetApp}
           />
         )}
       </Stack.Screen>

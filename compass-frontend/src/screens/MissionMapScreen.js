@@ -37,7 +37,7 @@ const TierBadge = ({ tier }) => {
     );
 };
 
-export default function MissionMapScreen({ navigation, route, saveMission }) {
+export default function MissionMapScreen({ navigation, route, saveMission, savedMissions = [], deleteMission }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
     const userProfile = route?.params?.userProfile;
@@ -49,9 +49,9 @@ export default function MissionMapScreen({ navigation, route, saveMission }) {
                     <Text style={{ color: theme.colors.textDim, marginBottom: 20 }}>No search data found.</Text>
                     <TouchableOpacity
                         style={styles.backBtn}
-                        onPress={() => navigation && navigation.goBack()}
+                        onPress={() => navigation.navigate('CareerSelect')}
                     >
-                        <Text style={{ color: theme.colors.primary }}>Go Back</Text>
+                        <Text style={{ color: theme.colors.primary }}>Start Over</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -105,25 +105,46 @@ export default function MissionMapScreen({ navigation, route, saveMission }) {
         });
     };
 
-    const handleSave = () => {
-        if (!selectedSchool || !saveMission) return;
+    const isSaved = (school) => {
+        return savedMissions.some(m => m.schoolName === school.school_name);
+    };
+
+    const handleSave = async (school) => {
+        if (!school || !saveMission) return;
         setSaving(true);
 
-        saveMission({
-            schoolName: selectedSchool.school_name,
-            tier: selectedSchool.ranking,
-            netPrice: selectedSchool.net_price,
-            cooldown: selectedSchool.debt_years,
-            earnings: selectedSchool.earnings,              // Added
-            careerName: userProfile.careerName,
-            targetCareer: userProfile.targetCareer,         // Added
-            date: new Date().toLocaleDateString()
-        });
+        const alreadySaved = isSaved(school);
 
-        Alert.alert("Saved!", `${selectedSchool.school_name} added to your list.`);
-        setSaving(false);
-        setSelectedSchool(null);
+        if (alreadySaved) {
+            // Find the ID to delete
+            const savedItem = savedMissions.find(m => m.schoolName === school.school_name);
+            if (savedItem && deleteMission) {
+                deleteMission(savedItem.id);
+            }
+        } else {
+            // Save logic
+            const price = school.sticker_price || school.net_price || 0;
+            saveMission({
+                schoolName: school.school_name,
+                tier: school.ranking,
+                schoolName: school.school_name,
+                tier: school.ranking,
+                netPrice: price, // Store Display Price (Sticker || Net) for cards
+                net_price: school.net_price, // Store Raw Net
+                sticker_price: school.sticker_price, // Store Raw Sticker
+                cooldown: school.debt_years,
+                earnings: school.earnings,
+                careerName: userProfile.careerName,
+                targetCareer: userProfile.targetCareer,
+                date: new Date().toLocaleDateString()
+            });
+            Alert.alert("Saved!", `${school.school_name} added to your list.`);
+        }
+
+        // Short delay to allow state update
+        setTimeout(() => setSaving(false), 300);
     };
+
 
     const renderItem = ({ item }) => (
         <TouchableOpacity
@@ -136,7 +157,7 @@ export default function MissionMapScreen({ navigation, route, saveMission }) {
                 <Text style={styles.scoreText}>Match Score: {item.compass_score}</Text>
             </View>
             <Text style={styles.priceText}>
-                ${(item.net_price || 0).toLocaleString()}/yr
+                ${(item.sticker_price || item.net_price || 0).toLocaleString()}/yr
             </Text>
         </TouchableOpacity>
     );
@@ -145,11 +166,19 @@ export default function MissionMapScreen({ navigation, route, saveMission }) {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity
+                    onPress={() => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate('CareerSelect');
+                        }
+                    }}
+                    style={styles.backBtn}
+                >
                     <ChevronLeft color={theme.colors.text} size={24} />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.label}>Step 3 of 3</Text>
                     <Text style={styles.title}>Your Matches</Text>
                 </View>
             </View>
@@ -195,7 +224,7 @@ export default function MissionMapScreen({ navigation, route, saveMission }) {
                                     <DollarSign size={18} color={theme.colors.primary} />
                                     <Text style={styles.statLabel}>Annual Cost</Text>
                                     <Text style={styles.statValue}>
-                                        ${(selectedSchool.net_price || 0).toLocaleString()}/yr
+                                        ${(selectedSchool.sticker_price || selectedSchool.net_price || 0).toLocaleString()}/yr
                                     </Text>
                                 </View>
                                 <View style={styles.statBox}>
@@ -216,18 +245,25 @@ export default function MissionMapScreen({ navigation, route, saveMission }) {
 
                             <View style={styles.modalActions}>
                                 <TouchableOpacity
-                                    style={styles.saveBtn}
-                                    onPress={handleSave}
+                                    style={[styles.saveBtn, isSaved(selectedSchool) && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }]}
+                                    onPress={() => handleSave(selectedSchool)}
                                     disabled={saving}
                                 >
-                                    <Bookmark size={18} color={theme.colors.text} />
-                                    <Text style={styles.saveBtnText}>Save</Text>
+                                    <Bookmark
+                                        size={18}
+                                        color={isSaved(selectedSchool) ? '#000' : theme.colors.text}
+                                        fill={isSaved(selectedSchool) ? '#000' : 'transparent'}
+                                    />
+                                    <Text style={[styles.saveBtnText, isSaved(selectedSchool) && { color: '#000' }]}>
+                                        {isSaved(selectedSchool) ? 'Saved' : 'Save'}
+                                    </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.detailsBtn}
                                     onPress={() => {
+                                        const schoolToPass = selectedSchool;
                                         setSelectedSchool(null);
-                                        handleViewDetails(selectedSchool);
+                                        handleViewDetails(schoolToPass);
                                     }}
                                 >
                                     <Text style={styles.detailsBtnText}>View Details</Text>

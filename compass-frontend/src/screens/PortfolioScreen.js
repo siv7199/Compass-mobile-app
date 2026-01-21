@@ -26,11 +26,12 @@ export default function PortfolioScreen({ navigation, savedMissions = [], delete
     const handleViewAnalysis = (college) => {
         navigation.navigate('CostAnalysis', {
             school: {
-                school_name: college.schoolName || college.target1,
-                net_price: college.netPrice || 0,
-                earnings: college.earnings || 50000,
-                ranking: college.tier,
-                debt_years: college.cooldown
+                school_name: college?.schoolName || college?.target1 || "Unknown School",
+                net_price: college?.net_price || college?.netPrice || 0, // Prefer raw net, fallback to saved
+                sticker_price: college?.sticker_price || college?.netPrice || 0, // Prefer raw sticker, fallback to saved
+                earnings: college?.earnings || 50000,
+                ranking: college?.tier || 'C',
+                debt_years: college?.cooldown || 0
             },
             profile: {
                 targetCareer: college.targetCareer || "15-1252",
@@ -123,7 +124,7 @@ export default function PortfolioScreen({ navigation, savedMissions = [], delete
                                     <DollarSign size={14} color={theme.colors.primary} />
                                     <Text style={styles.statLabel}>Annual Cost</Text>
                                     <Text style={styles.statValue}>
-                                        ${(college.netPrice || college.score1 || 0).toLocaleString()}
+                                        ${(college.sticker_price || college.netPrice || 0).toLocaleString()}
                                     </Text>
                                 </View>
                                 <View style={styles.statItem}>
