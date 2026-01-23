@@ -217,9 +217,9 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                         <Text style={styles.costValue}>${totalDegreeCost.toLocaleString()}</Text>
                     </View>
                     <View style={[styles.costRow, styles.highlightRow]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 10 }}>
                             <Clock size={16} color={theme.colors.secondary} />
-                            <Text style={styles.costLabel}>Payback Period</Text>
+                            <Text style={[styles.costLabel, { flex: 1, flexWrap: 'wrap' }]}>Career-Adjusted Payback</Text>
                         </View>
                         <Text style={[styles.costValue, { color: theme.colors.secondary }]}>{paybackYears} years</Text>
                     </View>
@@ -234,7 +234,7 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                                 parseFloat(paybackYears) < 12 ? '⚠ Moderate' : '⛔ High Risk'}
                     </Text>
                     <Text style={styles.roiDesc}>
-                        Based on paying 20% of salary toward loans after graduation
+                        Based on paying 20% of {careerData?.title || 'average'} salary toward loans after graduation
                     </Text>
                 </View>
 

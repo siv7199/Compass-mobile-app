@@ -92,6 +92,7 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
                 { school_id: 2, school_name: 'Tech State', compass_score: 82, ranking: 'A', debt_years: 2.1, earnings: 68000, debt: 22000, net_price: 21000 },
                 { school_id: 3, school_name: 'Community College', compass_score: 40, ranking: 'C', debt_years: 8.5, earnings: 35000, debt: 45000, net_price: 40000 },
             ]);
+            Alert.alert("Connection Failed", "Could not reach the server. Showing sample usage data instead.");
             console.log("Connection Failed:", error.message);
         } finally {
             setLoading(false);

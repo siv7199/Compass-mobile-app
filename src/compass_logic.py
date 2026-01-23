@@ -50,8 +50,11 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=
     # DUAL-COST LOGIC:
     # 1. Conservative (Sticker): For UI Display ("Hard Mode").
     # 2. Optimistic (Net): For Scoring (Tier S Visibility).
+    # UPDATE (User Request): "Students care about sticker price".
+    # We now force BOTH to use Sticker Price primarily. 
+    # Fallback to Net Price only if Sticker is missing (0/None) to avoid "Free School" bugs.
     cost_conservative = (sticker_price or net_price or 25000) * 4
-    cost_optimistic   = (net_price or sticker_price or 25000) * 4
+    cost_optimistic   = (sticker_price or net_price or 25000) * 4
     
     if annual_repayment <= 0:
         debt_years = 99.9
@@ -60,14 +63,13 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=
         debt_years = cost_conservative / annual_repayment
         score_debt_years = cost_optimistic / annual_repayment
         
-    # ROI Score uses OPTIMISTIC debt (Net Price) to ensure Ivies rank highly
+    # ROI Score now uses STICKER Price (High Risk)
     roi_score = max(0, w_roi - (score_debt_years * 1.5)) 
 
     # 3. Budget Score
     # GAME BALANCE: Sticker Price is King (Student Perception)
-    # 3. Budget Score
-    # UPDATE: Use Net Price for Budget (Affordability) while keeping ROI on Sticker (Risk)
-    cost_to_compare = net_price or sticker_price
+    # UPDATE: Strictly use Sticker Price for Budget Check.
+    cost_to_compare = sticker_price or net_price
     
     # ELITE PROTECTION: If school is highly prestigious (Adm Rate < 20%), 
     # we soften the budget penalty.

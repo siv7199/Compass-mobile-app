@@ -132,7 +132,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
     const handleSATSubmit = () => {
         const input = inputValue.toLowerCase().trim();
 
-        if (input === 'skip' || input === 'n/a' || input === '') {
+        if (['skip', 'n/a', 'idk', 'no', ''].includes(input)) {
             addMessage("Skipping SAT", true, 2);
             setUserData(prev => ({ ...prev, sat: '' }));
         } else {
@@ -184,9 +184,26 @@ export default function OnboardingScreen({ navigation, onComplete }) {
     };
 
     const handleBudgetSubmit = () => {
+        const input = inputValue.toLowerCase().trim();
+        // Allow skip
+        if (['skip', 'idk', 'dunno', "i don't know", ''].includes(input)) {
+            addMessage("No budget set", true, 4);
+            // Default to 25000 (typical manageable debt/year) or 0
+            setUserData(prev => ({ ...prev, budget: '25000' }));
+            setInputValue('');
+            setTimeout(() => {
+                addMessage("I'll assume a standard budget ~25k/yr for now. 🎯");
+                setTimeout(() => {
+                    addMessage("Let me find colleges that match your profile...");
+                    setCurrentStep(5);
+                }, 500);
+            }, 300);
+            return;
+        }
+
         const budget = parseInt(inputValue.replace(/[^0-9]/g, ''));
-        if (isNaN(budget) || budget < 0) {
-            addMessage("Please enter a valid budget amount");
+        if (isNaN(budget) || budget <= 0) {
+            addMessage("Please enter a valid budget amount or type 'skip'");
             return;
         }
 
@@ -208,14 +225,6 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         if (!inputValue.trim()) return;
 
         switch (currentStep) {
-            case 1:
-                handleGPASubmit();
-                break;
-            case 2:
-                handleSATSubmit();
-                break;
-            case 4:
-                handleBudgetSubmit();
             case 1:
                 handleGPASubmit();
                 break;
@@ -325,6 +334,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         return (
             <View style={styles.inputContainer}>
                 <TextInput
+                    key={currentStep} // Force re-render to update keyboard type
                     style={styles.input}
                     value={inputValue}
                     onChangeText={setInputValue}
@@ -334,7 +344,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                                 currentStep === 4 ? "e.g., 30000" : ""
                     }
                     placeholderTextColor={theme.colors.textDim}
-                    keyboardType={currentStep === 2 ? "default" : "numeric"}
+                    keyboardType={(currentStep === 2 || currentStep === 4) ? "default" : (currentStep === 1 ? "numeric" : "default")}
                     onSubmitEditing={handleSubmit}
                     returnKeyType="default"
                     blurOnSubmit={false}
