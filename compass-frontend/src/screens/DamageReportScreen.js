@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { API_URL } from '../config';
 import { useTheme } from '../theme/ThemeContext';
-import { ChevronLeft, ExternalLink, TrendingUp, DollarSign, Clock, Bookmark } from 'lucide-react-native';
+import { ChevronLeft, ExternalLink, TrendingUp, DollarSign, Clock, Bookmark, Save, X } from 'lucide-react-native';
 
-export default function DamageReportScreen({ route, navigation, saveMission, savedMissions, deleteMission }) {
+export default function DamageReportScreen({ route, navigation, saveMission, savedMissions, deleteMission, saveScenario, userProfile }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
 
@@ -34,6 +34,10 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
     const [careerData, setCareerData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saved, setSaved] = useState(false);
+
+    // Save Scenario Modal state
+    const [showScenarioModal, setShowScenarioModal] = useState(false);
+    const [scenarioName, setScenarioName] = useState('');
 
     // Offline fallback data
     // Offline data for all supported careers
@@ -163,9 +167,141 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
     };
 
     const handleVisitWebsite = () => {
-        const searchQuery = encodeURIComponent(school.school_name + ' admissions');
+        // Priority 1: Use actual school URL if provided
+        if (school.school_url) {
+            let url = school.school_url;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            Linking.openURL(url);
+            return;
+        }
+
+        const schoolName = school.school_name || '';
+        const lowerName = schoolName.toLowerCase();
+
+        // Priority 2: Exact match lookup (prevents UCF -> UFL confusion)
+        const exactUrls = {
+            'university of central florida': 'https://www.ucf.edu',
+            'university of florida': 'https://www.ufl.edu',
+            'florida state university': 'https://www.fsu.edu',
+            'university of south florida': 'https://www.usf.edu',
+            'florida international university': 'https://www.fiu.edu',
+            'university of north florida': 'https://www.unf.edu',
+            'university of texas at austin': 'https://www.utexas.edu',
+            'texas a&m university': 'https://www.tamu.edu',
+            'university of north carolina at chapel hill': 'https://www.unc.edu',
+            'north carolina state university': 'https://www.ncsu.edu',
+            'university of california-los angeles': 'https://www.ucla.edu',
+            'university of california-berkeley': 'https://www.berkeley.edu',
+            'university of california-san diego': 'https://www.ucsd.edu',
+            'university of california-davis': 'https://www.ucdavis.edu',
+            'university of california-irvine': 'https://www.uci.edu',
+            'university of southern california': 'https://www.usc.edu',
+            'california state university': 'https://www.calstate.edu',
+            'ohio state university': 'https://www.osu.edu',
+            'michigan state university': 'https://www.msu.edu',
+            'university of michigan-ann arbor': 'https://www.umich.edu',
+            'penn state university': 'https://www.psu.edu',
+            'pennsylvania state university': 'https://www.psu.edu',
+            'georgia institute of technology': 'https://www.gatech.edu',
+            'georgia tech': 'https://www.gatech.edu',
+            'massachusetts institute of technology': 'https://www.mit.edu',
+            'carnegie mellon university': 'https://www.cmu.edu',
+            'johns hopkins university': 'https://www.jhu.edu',
+            'boston university': 'https://www.bu.edu',
+            'boston college': 'https://www.bc.edu',
+            'new york university': 'https://www.nyu.edu',
+            'columbia university': 'https://www.columbia.edu',
+            'cornell university': 'https://www.cornell.edu',
+            'university of washington-seattle': 'https://www.washington.edu',
+            'washington state university': 'https://www.wsu.edu',
+            'arizona state university': 'https://www.asu.edu',
+            'university of arizona': 'https://www.arizona.edu',
+        };
+
+        // Check for exact match first
+        const exactMatch = Object.entries(exactUrls).find(([key]) =>
+            lowerName.includes(key) || key.includes(lowerName.replace(/-/g, ' '))
+        );
+
+        if (exactMatch) {
+            Linking.openURL(exactMatch[1]);
+            return;
+        }
+
+        // Priority 3: Partial match for common university names (less specific)
+        const partialUrls = {
+            'harvard': 'https://www.harvard.edu',
+            'yale': 'https://www.yale.edu',
+            'princeton': 'https://www.princeton.edu',
+            'stanford': 'https://www.stanford.edu',
+            'duke': 'https://www.duke.edu',
+            'northwestern': 'https://www.northwestern.edu',
+            'rice': 'https://www.rice.edu',
+            'vanderbilt': 'https://www.vanderbilt.edu',
+            'brown': 'https://www.brown.edu',
+            'dartmouth': 'https://www.dartmouth.edu',
+            'notre dame': 'https://www.nd.edu',
+            'georgetown': 'https://www.georgetown.edu',
+            'emory': 'https://www.emory.edu',
+            'purdue': 'https://www.purdue.edu',
+            'virginia tech': 'https://www.vt.edu',
+            'caltech': 'https://www.caltech.edu',
+        };
+
+        const partialMatch = Object.entries(partialUrls).find(([key]) =>
+            lowerName.includes(key)
+        );
+
+        if (partialMatch) {
+            Linking.openURL(partialMatch[1]);
+            return;
+        }
+
+        // Priority 4: Fallback to Google search
+        const searchQuery = encodeURIComponent(school.school_name + ' official admissions website');
         const url = `https://www.google.com/search?q=${searchQuery}`;
         Linking.openURL(url);
+    };
+
+    // Handle back button - offer to save scenario
+    const handleBack = () => {
+        if (saveScenario && userProfile) {
+            setShowScenarioModal(true);
+        } else {
+            navigation.goBack();
+        }
+    };
+
+    // Save the current search as a scenario
+    const handleSaveScenario = () => {
+        if (saveScenario && userProfile) {
+            saveScenario({
+                name: scenarioName.trim() || `${school.school_name} - ${profile?.careerName || 'Career'}`,
+                gpa: userProfile.gpa,
+                sat: userProfile.sat,
+                budget: userProfile.budget,
+                career: userProfile.career,
+                locationType: userProfile.locationType,
+                priorities: userProfile.priorities,
+                specialTypes: userProfile.specialTypes,
+                interests: userProfile.interests,
+                savedCollegeIds: [],
+                createdAt: new Date().toISOString()
+            });
+            Alert.alert("Scenario Saved!", "You can view it in the Saved tab under Scenarios.");
+        }
+        setShowScenarioModal(false);
+        setScenarioName('');
+        navigation.goBack();
+    };
+
+    // Skip saving and just go back
+    const handleSkipSave = () => {
+        setShowScenarioModal(false);
+        setScenarioName('');
+        navigation.goBack();
     };
 
     return (
@@ -173,7 +309,7 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
             <ScrollView contentContainerStyle={styles.scroll}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
                         <ChevronLeft color={theme.colors.text} size={24} />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
@@ -255,6 +391,43 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            {/* Save Scenario Modal */}
+            <Modal visible={showScenarioModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Save size={24} color={theme.colors.primary} />
+                            <Text style={styles.modalTitle}>Save This Search?</Text>
+                            <TouchableOpacity onPress={handleSkipSave}>
+                                <X size={24} color={theme.colors.textDim} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.modalDesc}>
+                            Save your search criteria as a scenario to revisit later.
+                        </Text>
+
+                        <TextInput
+                            style={styles.modalInput}
+                            value={scenarioName}
+                            onChangeText={setScenarioName}
+                            placeholder="Name your scenario (optional)"
+                            placeholderTextColor={theme.colors.textDim}
+                        />
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.skipBtn} onPress={handleSkipSave}>
+                                <Text style={styles.skipBtnText}>Skip</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.saveScenarioBtn} onPress={handleSaveScenario}>
+                                <Save size={16} color="#000" />
+                                <Text style={styles.saveScenarioBtnText}>Save Scenario</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -414,5 +587,78 @@ const getStyles = (theme) => StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         color: theme.colors.primary,
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        width: '100%',
+        backgroundColor: theme.colors.background,
+        borderRadius: 16,
+        padding: 20,
+        gap: 16,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    modalTitle: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: '600',
+        color: theme.colors.text,
+    },
+    modalDesc: {
+        fontSize: 14,
+        color: theme.colors.textDim,
+        lineHeight: 20,
+    },
+    modalInput: {
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 10,
+        padding: 14,
+        fontSize: 16,
+        color: theme.colors.text,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    skipBtn: {
+        flex: 1,
+        padding: 14,
+        borderRadius: 10,
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        alignItems: 'center',
+    },
+    skipBtnText: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: theme.colors.textDim,
+    },
+    saveScenarioBtn: {
+        flex: 2,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        padding: 14,
+        borderRadius: 10,
+        backgroundColor: theme.colors.primary,
+    },
+    saveScenarioBtnText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#000',
     },
 });

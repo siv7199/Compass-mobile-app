@@ -37,7 +37,7 @@ const TierBadge = ({ tier }) => {
     );
 };
 
-export default function MissionMapScreen({ navigation, route, saveMission, savedMissions = [], deleteMission }) {
+export default function MissionMapScreen({ navigation, route, saveMission, savedMissions = [], deleteMission, restartOnboarding }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
     const userProfile = route?.params?.userProfile;
@@ -169,7 +169,9 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
             <View style={styles.header}>
                 <TouchableOpacity
                     onPress={() => {
-                        if (navigation.canGoBack()) {
+                        if (restartOnboarding) {
+                            restartOnboarding();
+                        } else if (navigation.canGoBack()) {
                             navigation.goBack();
                         } else {
                             navigation.navigate('CareerSelect');

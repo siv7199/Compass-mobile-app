@@ -8,8 +8,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerRootComponent } from 'expo';
 import { Home, Briefcase, Compass, User } from 'lucide-react-native';
 
-// Screens - New Flow
+// Screens - New Onboarding Flow
 import WelcomeScreen from './src/screens/WelcomeScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
+import ModeSelectionScreen from './src/screens/ModeSelectionScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 
 // Screens - Main App (Renamed for clarity)
@@ -43,12 +45,20 @@ const AppContext = React.createContext();
 function App() {
   const { theme, isDarkMode } = useTheme();
 
-  // App flow state
-  const [appState, setAppState] = useState('welcome'); // 'welcome', 'onboarding', 'main'
+  // App flow state: welcome -> userProfile -> modeSelection -> onboarding -> main
+  const [appState, setAppState] = useState('welcome');
+
+  // User Info (name, email, username, age, profilePic)
+  const [userInfo, setUserInfo] = useState(null);
+
+  // User Profile (GPA, SAT, career, budget, preferences from onboarding)
   const [userProfile, setUserProfile] = useState(null);
 
   // Saved colleges (renamed from savedMissions)
   const [savedColleges, setSavedColleges] = useState([]);
+
+  // Saved scenarios
+  const [savedScenarios, setSavedScenarios] = useState([]);
 
   const saveCollege = (college) => {
     const collegeWithId = {
@@ -74,7 +84,45 @@ function App() {
     setSavedColleges([]);
   };
 
-  // Handle onboarding completion
+  // Scenario management
+  const saveScenario = (scenario) => {
+    const scenarioWithId = {
+      ...scenario,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setSavedScenarios(prev => [scenarioWithId, ...prev]);
+    return scenarioWithId.id;
+  };
+
+  const updateScenario = (scenarioId, updates) => {
+    setSavedScenarios(prev => prev.map(s =>
+      s.id === scenarioId
+        ? { ...s, ...updates, updatedAt: new Date().toISOString() }
+        : s
+    ));
+  };
+
+  const deleteScenario = (scenarioId) => {
+    setSavedScenarios(prev => prev.filter(s => s.id !== scenarioId));
+  };
+
+  // Handle user profile (name, age, etc.) completion
+  const handleUserInfoComplete = (info) => {
+    setUserInfo(info);
+    setAppState('modeSelection');
+  };
+
+  // Handle mode selection
+  const handleModeSelect = (mode) => {
+    if (mode === 'strategy') {
+      setAppState('onboarding');
+    }
+    // Discovery mode would go elsewhere when implemented
+  };
+
+  // Handle onboarding (chatbot) completion
   const handleOnboardingComplete = (userData) => {
     setUserProfile(userData);
     setAppState('main');
@@ -85,35 +133,69 @@ function App() {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
-        <WelcomeScreen onComplete={() => setAppState('onboarding')} />
+        <WelcomeScreen onComplete={() => setAppState('userProfile')} />
       </View>
     );
   }
 
-  // Show Onboarding screen
+  // Show User Profile screen (name, email, age)
+  if (appState === 'userProfile') {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
+        <UserProfileScreen onComplete={handleUserInfoComplete} />
+      </View>
+    );
+  }
+
+  // Show Mode Selection screen
+  if (appState === 'modeSelection') {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
+        <ModeSelectionScreen userInfo={userInfo} onSelectMode={handleModeSelect} />
+      </View>
+    );
+  }
+
+  // Show Onboarding screen (chatbot)
   if (appState === 'onboarding') {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={theme.colors.background} />
-        <OnboardingScreen onComplete={handleOnboardingComplete} />
+        <OnboardingScreen onComplete={handleOnboardingComplete} userInfo={userInfo} />
       </View>
     );
   }
 
   const resetApp = () => {
     setSavedColleges([]);
+    setSavedScenarios([]);
     setUserProfile(null);
+    setUserInfo(null);
     setAppState('welcome');
   };
 
+  // Go back to onboarding chatbot (keeps user info, clears profile)
+  const restartOnboarding = () => {
+    setUserProfile(null);
+    setAppState('onboarding');
+  };
+
   const appContext = {
+    userInfo,
     userProfile,
     savedColleges,
     saveCollege,
     deleteCollege,
     toggleFavorite,
     clearColleges,
-    resetApp
+    savedScenarios,
+    saveScenario,
+    updateScenario,
+    deleteScenario,
+    resetApp,
+    restartOnboarding
   };
 
   return (
@@ -222,6 +304,7 @@ function ExploreStack({ appContext }) {
             saveMission={appContext.saveCollege}
             savedMissions={appContext.savedColleges}
             deleteMission={appContext.deleteCollege}
+            restartOnboarding={appContext.restartOnboarding}
             showPvPTutorial={false}
             closePvPTutorial={() => { }}
             showPreviewTutorial={false}
@@ -237,6 +320,8 @@ function ExploreStack({ appContext }) {
             saveMission={appContext.saveCollege}
             savedMissions={appContext.savedColleges}
             deleteMission={appContext.deleteCollege}
+            saveScenario={appContext.saveScenario}
+            userProfile={appContext.userProfile}
           />
         )}
       </Stack.Screen>
@@ -265,6 +350,9 @@ function SavedStack({ appContext }) {
             savedMissions={appContext.savedColleges}
             deleteMission={appContext.deleteCollege}
             toggleFavorite={appContext.toggleFavorite}
+            savedScenarios={appContext.savedScenarios}
+            deleteScenario={appContext.deleteScenario}
+            updateScenario={appContext.updateScenario}
           />
         )}
       </Stack.Screen>
@@ -276,6 +364,8 @@ function SavedStack({ appContext }) {
             saveMission={appContext.saveCollege}
             savedMissions={appContext.savedColleges}
             deleteMission={appContext.deleteCollege}
+            saveScenario={appContext.saveScenario}
+            userProfile={appContext.userProfile}
           />
         )}
       </Stack.Screen>

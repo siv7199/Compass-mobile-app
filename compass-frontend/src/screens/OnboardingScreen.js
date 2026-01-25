@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { Send, Briefcase, Heart, Zap, PenTool, ChevronRight, Edit2 } from 'lucide-react-native';
+import { Send, Briefcase, Heart, Zap, PenTool, ChevronRight, Edit2, MapPin, Shield, Users, Building, Check } from 'lucide-react-native';
 
 const CAREER_OPTIONS = [
     { id: 'engineer', name: 'Engineering & Tech', icon: Zap, desc: 'Software, Civil, Mechanical' },
@@ -62,26 +62,63 @@ const SPECIFIC_CAREERS = {
     ]
 };
 
-const STEPS = ['welcome', 'gpa', 'sat', 'career', 'budget', 'complete'];
+// New preference options
+const LOCATION_TYPES = [
+    { id: 'small_town', label: 'Small College Town', desc: 'Quiet, focused environment' },
+    { id: 'medium_city', label: 'Medium-sized City', desc: 'Balance of options & calm' },
+    { id: 'major_metro', label: 'Major Metropolitan', desc: 'Big city opportunities' },
+    { id: 'no_pref', label: 'No Preference', desc: 'Open to any location' },
+];
 
-export default function OnboardingScreen({ navigation, onComplete }) {
+const CAMPUS_SETTINGS = [
+    { id: 'urban', label: 'Urban', icon: Building },
+    { id: 'suburban', label: 'Suburban', icon: MapPin },
+    { id: 'rural', label: 'Rural', icon: MapPin },
+];
+
+const CAMPUS_PRIORITIES = [
+    { id: 'safety', label: 'Campus Safety', icon: Shield },
+    { id: 'diversity', label: 'Diversity', icon: Users },
+    { id: 'food', label: 'Good Food', icon: null },
+    { id: 'sports', label: 'Sports Culture', icon: null },
+    { id: 'greek', label: 'Greek Life', icon: null },
+    { id: 'research', label: 'Research Opportunities', icon: null },
+];
+
+const SPECIAL_INSTITUTIONS = [
+    { id: 'hbcu', label: 'HBCU', desc: 'Historically Black Colleges & Universities' },
+    { id: 'womens', label: "Women's College", desc: 'Women-only institutions' },
+    { id: 'religious', label: 'Religious Affiliation', desc: 'Faith-based institutions' },
+    { id: 'none', label: 'No Preference', desc: 'Open to all institution types' },
+];
+
+// Steps: 0-welcome, 1-gpa, 2-sat, 3-career, 3.5-specificCareer, 4-budget, 
+// 5-location, 6-setting(skipped), 7-priorities, 8-specialTypes, 9-interests(skipped), 10-complete
+
+export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
     const scrollRef = useRef(null);
 
     const [currentStep, setCurrentStep] = useState(0);
-    // 0: Welcome, 1: GPA, 2: SAT, 3: Career Category, 3.5: Specific Career, 4: Budget, 5: Complete
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
+
+    // Enhanced user data
     const [userData, setUserData] = useState({
         gpa: '',
         sat: '',
         career: null,
         budget: '',
+        // New fields
+        locationType: null,      // small_town, medium_city, major_metro, no_pref
+        campusSetting: null,     // urban, suburban, rural
+        priorities: [],          // array of priority ids
+        specialTypes: [],        // array of special institution ids
+        interests: '',           // free text
     });
 
-    // Animate new messages
     const addMessage = (text, isUser = false, stepId = null) => {
         setMessages(prev => [...prev, { text, isUser, id: Date.now() + Math.random(), stepId }]);
         setTimeout(() => {
@@ -91,10 +128,11 @@ export default function OnboardingScreen({ navigation, onComplete }) {
 
     // Initial message on mount
     useEffect(() => {
+        const firstName = userInfo?.name?.split(' ')[0] || 'there';
         setTimeout(() => {
-            addMessage("Welcome to Compass! 👋");
+            addMessage(`Hey ${firstName}! 👋 Let's find your perfect college match.`);
             setTimeout(() => {
-                addMessage("I'll help you find colleges that match your goals and budget. Let's start with a few quick questions.");
+                addMessage("I'll ask you a few questions about your academics, career goals, and preferences.");
                 setTimeout(() => {
                     addMessage("What's your GPA? (Use your unweighted GPA on a 0-4.0 scale)");
                     setCurrentStep(1);
@@ -148,7 +186,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setInputValue('');
 
         setTimeout(() => {
-            addMessage("Now, what career area interests you most? (Scroll to see more options)");
+            addMessage("Now, what career area interests you most?");
             setCurrentStep(3);
         }, 300);
     };
@@ -158,8 +196,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setSelectedCategory(career.id);
 
         setTimeout(() => {
-            addMessage(`Which specific role in ${career.name} interests you? (Scroll list to view all)`);
-            setCurrentStep(3.5); // Intermediate step for specific career
+            addMessage(`Which specific role in ${career.name} interests you?`);
+            setCurrentStep(3.5);
         }, 300);
     };
 
@@ -168,7 +206,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setUserData(prev => ({
             ...prev,
             career: {
-                ...prev.career, // preserve category info if any
+                category: selectedCategory,
                 name: specificCareer.title,
                 soc: specificCareer.soc
             }
@@ -177,7 +215,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setTimeout(() => {
             addMessage(`${specificCareer.title} - excellent choice!`);
             setTimeout(() => {
-                addMessage("Last question: What's the maximum you can spend per year on college? (Enter a number like 30000)");
+                addMessage("What's the maximum you can spend per year on college? (Enter a number like 30000, or 'skip')");
                 setCurrentStep(4);
             }, 400);
         }, 300);
@@ -185,18 +223,14 @@ export default function OnboardingScreen({ navigation, onComplete }) {
 
     const handleBudgetSubmit = () => {
         const input = inputValue.toLowerCase().trim();
-        // Allow skip
+
         if (['skip', 'idk', 'dunno', "i don't know", ''].includes(input)) {
             addMessage("No budget set", true, 4);
-            // Default to 25000 (typical manageable debt/year) or 0
             setUserData(prev => ({ ...prev, budget: '25000' }));
             setInputValue('');
             setTimeout(() => {
-                addMessage("I'll assume a standard budget ~25k/yr for now. 🎯");
-                setTimeout(() => {
-                    addMessage("Let me find colleges that match your profile...");
-                    setCurrentStep(5);
-                }, 500);
+                addMessage("I'll assume a standard budget ~25k/yr for now.");
+                proceedToLocationStep();
             }, 300);
             return;
         }
@@ -213,16 +247,126 @@ export default function OnboardingScreen({ navigation, onComplete }) {
         setInputValue('');
 
         setTimeout(() => {
+            addMessage("Got it! 💰");
+            proceedToLocationStep();
+        }, 300);
+    };
+
+    const proceedToLocationStep = () => {
+        setTimeout(() => {
+            addMessage("Now let's talk about what you're looking for in a college environment...");
+            setTimeout(() => {
+                addMessage("What type of location appeals to you?");
+                setCurrentStep(5);
+            }, 400);
+        }, 300);
+    };
+
+    const handleLocationSelect = (location) => {
+        addMessage(location.label, true, 5);
+        setUserData(prev => ({ ...prev, locationType: location.id }));
+
+        setTimeout(() => {
+            addMessage("What's most important to you in a college? (Select all that apply)");
+            setCurrentStep(7); // Skip step 6 (campus setting) - redundant with location
+        }, 300);
+    };
+
+    const handleSettingSelect = (setting) => {
+        // This step is now skipped, but keep the function for safety
+        addMessage(setting.label, true, 6);
+        setUserData(prev => ({ ...prev, campusSetting: setting.id }));
+
+        setTimeout(() => {
+            addMessage("What's most important to you in a college? (Select all that apply)");
+            setCurrentStep(7);
+        }, 300);
+    };
+
+    const handlePrioritiesConfirm = () => {
+        const selectedLabels = userData.priorities.map(id =>
+            CAMPUS_PRIORITIES.find(p => p.id === id)?.label
+        ).filter(Boolean);
+
+        const displayText = selectedLabels.length > 0
+            ? selectedLabels.join(', ')
+            : 'No specific priorities';
+
+        addMessage(displayText, true, 7);
+
+        setTimeout(() => {
+            addMessage("Are you interested in any special types of institutions?");
+            setCurrentStep(8);
+        }, 300);
+    };
+
+    const handleSpecialTypesConfirm = () => {
+        const selectedLabels = userData.specialTypes.map(id =>
+            SPECIAL_INSTITUTIONS.find(s => s.id === id)?.label
+        ).filter(Boolean);
+
+        const displayText = selectedLabels.length > 0
+            ? selectedLabels.join(', ')
+            : 'No preference';
+
+        addMessage(displayText, true, 8);
+
+        // Skip step 9 (free-form interests) - go directly to completion
+        setTimeout(() => {
             addMessage("Perfect! I have everything I need. 🎯");
             setTimeout(() => {
                 addMessage("Let me find colleges that match your profile...");
-                setCurrentStep(5);
+                setCurrentStep(10);
             }, 500);
         }, 300);
     };
 
+    const handleInterestsSubmit = () => {
+        const input = inputValue.trim();
+
+        if (['skip', ''].includes(input.toLowerCase())) {
+            addMessage("No additional interests", true, 9);
+        } else {
+            addMessage(input, true, 9);
+            setUserData(prev => ({ ...prev, interests: input }));
+        }
+        setInputValue('');
+
+        setTimeout(() => {
+            addMessage("Perfect! I have everything I need. 🎯");
+            setTimeout(() => {
+                addMessage("Let me find colleges that match your profile...");
+                setCurrentStep(10);
+            }, 500);
+        }, 300);
+    };
+
+    const togglePriority = (id) => {
+        setUserData(prev => ({
+            ...prev,
+            priorities: prev.priorities.includes(id)
+                ? prev.priorities.filter(p => p !== id)
+                : [...prev.priorities, id]
+        }));
+    };
+
+    const toggleSpecialType = (id) => {
+        setUserData(prev => {
+            if (id === 'none') {
+                return { ...prev, specialTypes: ['none'] };
+            }
+            const newTypes = prev.specialTypes.filter(t => t !== 'none');
+            return {
+                ...prev,
+                specialTypes: newTypes.includes(id)
+                    ? newTypes.filter(t => t !== id)
+                    : [...newTypes, id]
+            };
+        });
+    };
+
     const handleSubmit = () => {
-        if (!inputValue.trim()) return;
+        if (!inputValue.trim() && currentStep !== 9) return;
 
         switch (currentStep) {
             case 1:
@@ -234,22 +378,19 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             case 4:
                 handleBudgetSubmit();
                 break;
+            case 9:
+                handleInterestsSubmit();
+                break;
         }
     };
 
     const handleEdit = (stepId) => {
         if (!stepId) return;
-
-        // Reset to specific step
         setCurrentStep(stepId);
-
-        // Remove messages after this point to keep chat clean
         const messageIndex = messages.findIndex(m => m.stepId === stepId);
         if (messageIndex !== -1) {
             setMessages(prev => prev.slice(0, messageIndex));
         }
-
-        // Pre-fill input if data exists
         if (stepId === 1) setInputValue(userData.gpa);
         if (stepId === 2) setInputValue(userData.sat);
         if (stepId === 4) setInputValue(userData.budget);
@@ -262,8 +403,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
     };
 
     const renderInput = () => {
+        // Career category selection (step 3)
         if (currentStep === 3) {
-            // Career selection cards
             return (
                 <View style={styles.careerGrid}>
                     {CAREER_OPTIONS.map((career) => {
@@ -285,8 +426,8 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             );
         }
 
+        // Specific career selection (step 3.5)
         if (currentStep === 3.5) {
-            // Specific Career List
             const options = SPECIFIC_CAREERS[selectedCategory] || [];
             return (
                 <View style={[styles.careerGrid, { maxHeight: 300 }]}>
@@ -295,8 +436,6 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                         style={{ width: '100%', maxHeight: 250 }}
                         persistentScrollbar={true}
                         showsVerticalScrollIndicator={true}
-                        indicatorStyle="white"
-                        onContentSizeChange={(w, h) => scrollRef.current?.flashScrollIndicators()}
                     >
                         <View style={{ gap: 8, paddingBottom: 20 }}>
                             {options.map((option) => (
@@ -316,8 +455,122 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             );
         }
 
+        // Location type selection (step 5)
         if (currentStep === 5) {
-            // Complete - show button to proceed
+            return (
+                <View style={styles.optionsList}>
+                    {LOCATION_TYPES.map((loc) => (
+                        <TouchableOpacity
+                            key={loc.id}
+                            style={styles.optionCard}
+                            onPress={() => handleLocationSelect(loc)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.optionLabel}>{loc.label}</Text>
+                                <Text style={styles.optionDesc}>{loc.desc}</Text>
+                            </View>
+                            <ChevronRight size={18} color={theme.colors.textDim} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            );
+        }
+
+        // Campus setting selection (step 6)
+        if (currentStep === 6) {
+            return (
+                <View style={styles.settingsRow}>
+                    {CAMPUS_SETTINGS.map((setting) => (
+                        <TouchableOpacity
+                            key={setting.id}
+                            style={styles.settingCard}
+                            onPress={() => handleSettingSelect(setting)}
+                            activeOpacity={0.7}
+                        >
+                            <MapPin size={24} color={theme.colors.primary} />
+                            <Text style={styles.settingLabel}>{setting.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            );
+        }
+
+        // Priorities multi-select (step 7)
+        if (currentStep === 7) {
+            return (
+                <View style={styles.multiSelectContainer}>
+                    <View style={styles.priorityGrid}>
+                        {CAMPUS_PRIORITIES.map((priority) => {
+                            const isSelected = userData.priorities.includes(priority.id);
+                            return (
+                                <TouchableOpacity
+                                    key={priority.id}
+                                    style={[styles.priorityChip, isSelected && styles.priorityChipSelected]}
+                                    onPress={() => togglePriority(priority.id)}
+                                    activeOpacity={0.7}
+                                >
+                                    {isSelected && <Check size={14} color="#000" style={{ marginRight: 4 }} />}
+                                    <Text style={[styles.priorityLabel, isSelected && styles.priorityLabelSelected]}>
+                                        {priority.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.confirmButton}
+                        onPress={handlePrioritiesConfirm}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.confirmButtonText}>Continue</Text>
+                        <ChevronRight size={18} color="#000" />
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        // Special institution types (step 8)
+        if (currentStep === 8) {
+            return (
+                <View style={styles.multiSelectContainer}>
+                    <View style={styles.optionsList}>
+                        {SPECIAL_INSTITUTIONS.map((inst) => {
+                            const isSelected = userData.specialTypes.includes(inst.id);
+                            return (
+                                <TouchableOpacity
+                                    key={inst.id}
+                                    style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                                    onPress={() => toggleSpecialType(inst.id)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.optionLabel}>{inst.label}</Text>
+                                        <Text style={styles.optionDesc}>{inst.desc}</Text>
+                                    </View>
+                                    {isSelected && (
+                                        <View style={styles.checkCircle}>
+                                            <Check size={14} color="#000" />
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.confirmButton}
+                        onPress={handleSpecialTypesConfirm}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.confirmButtonText}>Continue</Text>
+                        <ChevronRight size={18} color="#000" />
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        // Complete - show button to proceed (step 10)
+        if (currentStep === 10) {
             return (
                 <TouchableOpacity
                     style={styles.completeButton}
@@ -330,35 +583,40 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             );
         }
 
-        // Text input for GPA, SAT, Budget
+        // Text input for GPA, SAT, Budget, Interests
         return (
             <View style={styles.inputContainer}>
                 <TextInput
-                    key={currentStep} // Force re-render to update keyboard type
+                    key={currentStep}
                     style={styles.input}
                     value={inputValue}
                     onChangeText={setInputValue}
                     placeholder={
                         currentStep === 1 ? "e.g., 3.5" :
                             currentStep === 2 ? "e.g., 1200 or 'skip'" :
-                                currentStep === 4 ? "e.g., 30000" : ""
+                                currentStep === 4 ? "e.g., 30000" :
+                                    currentStep === 9 ? "Type interests or 'skip'" : ""
                     }
                     placeholderTextColor={theme.colors.textDim}
-                    keyboardType={(currentStep === 2 || currentStep === 4) ? "default" : (currentStep === 1 ? "numeric" : "default")}
+                    keyboardType={(currentStep === 1 || currentStep === 4) ? "numeric" : "default"}
                     onSubmitEditing={handleSubmit}
-                    returnKeyType="default"
+                    returnKeyType="done"
                     blurOnSubmit={false}
                 />
                 <TouchableOpacity
-                    style={[styles.sendButton, !inputValue.trim() && { opacity: 0.5 }]}
+                    style={[styles.sendButton, (!inputValue.trim() && currentStep !== 9) && { opacity: 0.5 }]}
                     onPress={handleSubmit}
-                    disabled={!inputValue.trim()}
+                    disabled={!inputValue.trim() && currentStep !== 9}
                 >
                     <Send size={20} color="#000" />
                 </TouchableOpacity>
             </View>
         );
     };
+
+    // Calculate progress (10 steps total)
+    const totalSteps = 10;
+    const progressSteps = Math.min(Math.floor(currentStep), totalSteps);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -369,12 +627,12 @@ export default function OnboardingScreen({ navigation, onComplete }) {
             >
                 {/* Progress indicator */}
                 <View style={styles.progressContainer}>
-                    {STEPS.slice(1, -1).map((_, index) => (
+                    {[...Array(6)].map((_, index) => (
                         <View
                             key={index}
                             style={[
                                 styles.progressDot,
-                                currentStep > index && styles.progressDotActive
+                                progressSteps > index * 2 && styles.progressDotActive
                             ]}
                         />
                     ))}
@@ -400,7 +658,7 @@ export default function OnboardingScreen({ navigation, onComplete }) {
                             ]}>
                                 {msg.text}
                             </Text>
-                            {msg.isUser && msg.stepId && (
+                            {msg.isUser && msg.stepId && msg.stepId <= 4 && (
                                 <TouchableOpacity
                                     onPress={() => handleEdit(msg.stepId)}
                                     style={styles.editButton}
@@ -473,7 +731,7 @@ const getStyles = (theme) => StyleSheet.create({
     editButton: {
         marginLeft: 8,
         padding: 8,
-        backgroundColor: theme.colors.primary, // Solid Green
+        backgroundColor: theme.colors.primary,
         borderRadius: 20,
         borderWidth: 1,
         borderColor: theme.colors.glassBorder,
@@ -539,6 +797,107 @@ const getStyles = (theme) => StyleSheet.create({
     careerDesc: {
         fontSize: 12,
         color: theme.colors.textDim,
+    },
+    optionsList: {
+        gap: 10,
+    },
+    optionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 12,
+        padding: 16,
+    },
+    optionCardSelected: {
+        borderColor: theme.colors.primary,
+        backgroundColor: theme.colors.primary + '15',
+    },
+    optionLabel: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.colors.text,
+    },
+    optionDesc: {
+        fontSize: 12,
+        color: theme.colors.textDim,
+        marginTop: 2,
+    },
+    settingsRow: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'nowrap',
+    },
+    settingCard: {
+        flex: 1,
+        minWidth: 90,
+        alignItems: 'center',
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        gap: 6,
+    },
+    settingLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: theme.colors.text,
+        textAlign: 'center',
+    },
+    multiSelectContainer: {
+        gap: 16,
+    },
+    priorityGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    priorityChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 20,
+    },
+    priorityChipSelected: {
+        backgroundColor: theme.colors.primary,
+        borderColor: theme.colors.primary,
+    },
+    priorityLabel: {
+        fontSize: 14,
+        color: theme.colors.text,
+    },
+    priorityLabelSelected: {
+        color: '#000',
+        fontWeight: '600',
+    },
+    checkCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: theme.colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.primary,
+        paddingVertical: 14,
+        borderRadius: 12,
+        gap: 6,
+    },
+    confirmButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000',
     },
     completeButton: {
         backgroundColor: theme.colors.primary,
