@@ -3,9 +3,11 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal, ActivityIndi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { BlurView } from 'expo-blur';
-import { X, DollarSign, Clock, ChevronLeft, TrendingUp, Bookmark } from 'lucide-react-native';
+import { X, DollarSign, Clock, ChevronLeft, TrendingUp, Bookmark, Edit2 } from 'lucide-react-native';
 import axios from 'axios';
 import { API_URL } from '../config';
+import EditScenarioModal from './EditScenarioModal';
+import { OFFLINE_CAREER_DATA } from '../data/CareerData';
 
 const TierBadge = ({ tier }) => {
     const { theme } = useTheme();
@@ -37,12 +39,24 @@ const TierBadge = ({ tier }) => {
     );
 };
 
-export default function MissionMapScreen({ navigation, route, saveMission, savedMissions = [], deleteMission, restartOnboarding }) {
+export default function MissionMapScreen({ navigation, route, saveMission, savedMissions = [], deleteMission, saveScenario, updateScenario, closeScenario, restartOnboarding, userProfile }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
-    const userProfile = route?.params?.userProfile;
 
-    if (!userProfile) {
+    // State to hold the profile being displayed (allows for editing without navigation)
+    // State to hold the profile being displayed (allows for editing without navigation)
+    const [activeProfile, setActiveProfile] = useState(userProfile || route?.params?.userProfile);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+
+    useEffect(() => {
+        if (userProfile) {
+            setActiveProfile(userProfile);
+        } else if (route?.params?.userProfile) {
+            setActiveProfile(route.params.userProfile);
+        }
+    }, [userProfile, route?.params?.userProfile]);
+
+    if (!activeProfile) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.center}>
@@ -62,10 +76,77 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
     const [schools, setSchools] = useState([]);
     const [selectedSchool, setSelectedSchool] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [careerData, setCareerData] = useState(null);
+    const [loadingCareer, setLoadingCareer] = useState(false);
+
+    // BLS career wage offline fallback data
+    // BLS career wage offline fallback data
+    // Data imported from ../data/CareerData.js
+
+    // Fetch BLS career data when a school is selected
+    useEffect(() => {
+        if (selectedSchool) {
+            fetchCareerData();
+        } else {
+            setCareerData(null);
+        }
+    }, [selectedSchool]);
+
+    const fetchCareerData = async () => {
+        setLoadingCareer(true);
+        try {
+            const socCode = activeProfile?.targetCareer || activeProfile?.career?.soc || "15-1252";
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            const response = await fetch(`${API_URL}/api/career`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ soc_code: socCode }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error("Server error");
+            const data = await response.json();
+            setCareerData(data);
+        } catch (error) {
+            console.warn("Using offline career data:", error.message);
+            const socCode = activeProfile?.targetCareer || activeProfile?.career?.soc || "15-1252";
+            const fallback = OFFLINE_CAREER_DATA[socCode] || {
+                title: activeProfile?.careerName || "General Career",
+                annual_mean_wage: 65000,
+                projected_growth: 4.0
+            };
+            setCareerData(fallback);
+        } finally {
+            setLoadingCareer(false);
+        }
+    };
+
+    // Calculate payback using BLS salary
+    const calculatePayback = (school) => {
+        const salary = careerData?.annual_mean_wage || school.earnings || 50000;
+        const annualCost = school.sticker_price || school.net_price || 25000;
+        const totalDebt = annualCost * 4;
+        const annualRepayment = salary * 0.20;
+        if (annualRepayment <= 0) return 99;
+        return (totalDebt / annualRepayment).toFixed(1);
+    };
 
     useEffect(() => {
         fetchSchools();
-    }, []);
+    }, [activeProfile]); // Re-fetch when profile updates
+
+    const handleUpdateProfile = (updatedProfile) => {
+        setEditModalVisible(false);
+        setActiveProfile(updatedProfile);
+
+        // If it's a saved scenario (has ID), update persistence
+        if (updatedProfile.id && updateScenario) {
+            updateScenario(updatedProfile.id, updatedProfile);
+        }
+    };
 
     const fetchSchools = async () => {
         console.log(`Fetching from ${API_URL}/api/score`);
@@ -73,10 +154,12 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
 
         try {
             const payload = {
-                gpa: parseFloat(userProfile.gpa),
-                sat: userProfile.sat ? parseInt(userProfile.sat) : null,
-                major: userProfile.career?.soc || "15-1252", // Ensure we access the nested SOC code
-                budget: parseInt(userProfile.budget)
+                gpa: parseFloat(activeProfile.gpa),
+                sat: activeProfile.sat ? parseInt(activeProfile.sat) : null,
+                major: activeProfile.career?.soc || "15-1252",
+                budget: parseInt(activeProfile.budget),
+                priorities: activeProfile.priorities || [],
+                priorityWeights: activeProfile.priorityWeights || {}
             };
 
             const response = await axios.post(
@@ -102,7 +185,7 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
     const handleViewDetails = (school) => {
         navigation.navigate('CostAnalysis', {
             school,
-            profile: userProfile
+            profile: activeProfile
         });
     };
 
@@ -125,9 +208,14 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
         } else {
             // Save logic
             const price = school.sticker_price || school.net_price || 0;
+
+            // Determine specific career title
+            // Priority: Fteched Data > Offline Lookup (by SOC) > Active Profile Name > General
+            const socCode = activeProfile.targetCareer || activeProfile.career?.soc || "15-1252";
+            const specificCareer = OFFLINE_CAREER_DATA[socCode];
+            const finalCareerName = careerData?.title || specificCareer?.title || activeProfile.careerName || activeProfile.career?.name || "General Career";
+
             saveMission({
-                schoolName: school.school_name,
-                tier: school.ranking,
                 schoolName: school.school_name,
                 tier: school.ranking,
                 netPrice: price, // Store Display Price (Sticker || Net) for cards
@@ -135,8 +223,8 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
                 sticker_price: school.sticker_price, // Store Raw Sticker
                 cooldown: school.debt_years,
                 earnings: school.earnings,
-                careerName: userProfile.careerName,
-                targetCareer: userProfile.targetCareer,
+                careerName: finalCareerName,
+                targetCareer: socCode,
                 date: new Date().toLocaleDateString()
             });
             Alert.alert("Saved!", `${school.school_name} added to your list.`);
@@ -169,22 +257,96 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
             <View style={styles.header}>
                 <TouchableOpacity
                     onPress={() => {
-                        if (restartOnboarding) {
-                            restartOnboarding();
-                        } else if (navigation.canGoBack()) {
+                        // If viewing from Saved Tab (ScenarioDetails), just go back
+                        if (route.name === 'ScenarioDetails') {
                             navigation.goBack();
+                            return;
+                        }
+
+                        const handleClose = () => {
+                            Alert.alert(
+                                "Close Scenario?",
+                                "Are you sure you want to close this scenario?",
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    {
+                                        text: "Close",
+                                        style: "destructive",
+                                        onPress: () => {
+                                            if (closeScenario) closeScenario();
+                                            navigation.navigate('EmptyScenario');
+                                        }
+                                    }
+                                ]
+                            );
+                        };
+
+                        if (activeProfile?.id) {
+                            // Saved Scenario (Explore Tab) - Prompt to close
+                            handleClose();
                         } else {
-                            navigation.navigate('CareerSelect');
+                            // New/Unsaved Scenario - Prompt to Save
+                            Alert.alert(
+                                "Save Scenario?",
+                                "Do you want to save this scenario first?",
+                                [
+                                    {
+                                        text: "Save",
+                                        onPress: () => {
+                                            Alert.prompt(
+                                                "Name Scenario",
+                                                "Enter a name for this search:",
+                                                [
+                                                    { text: "Cancel", style: "cancel" },
+                                                    {
+                                                        text: "Save",
+                                                        onPress: (name) => {
+                                                            const scenarioName = name.trim() || `Scenario ${new Date().toLocaleDateString()}`;
+                                                            if (saveScenario) saveScenario({ ...activeProfile, name: scenarioName });
+                                                            Alert.alert("Saved", "Scenario saved to portfolio.", [
+                                                                { text: "OK", onPress: handleClose }
+                                                            ]);
+                                                        }
+                                                    }
+                                                ],
+                                                "plain-text"
+                                            );
+                                        }
+                                    },
+                                    {
+                                        text: "Don't Save",
+                                        onPress: handleClose,
+                                        style: "destructive"
+                                    },
+                                    {
+                                        text: "Cancel",
+                                        style: "cancel"
+                                    }
+                                ]
+                            );
                         }
                     }}
                     style={styles.backBtn}
                 >
                     <ChevronLeft color={theme.colors.text} size={24} />
                 </TouchableOpacity>
-                <View>
-                    <Text style={styles.title}>Your Matches</Text>
+                <View style={{ flex: 1, justifyContent: 'center' }}>
+                    <Text style={styles.title} numberOfLines={1}>Your Matches</Text>
                 </View>
             </View>
+
+            {/* Edit Criteria button removed as requested */}
+            {/*
+            { (activeProfile?.id || route.params?.fromSaved) && (
+                <TouchableOpacity
+                    style={styles.refineBtn}
+                    onPress={() => setEditModalVisible(true)}
+                >
+                    <Edit2 color={theme.colors.text} size={16} />
+                    <Text style={styles.refineText}>Edit Criteria</Text>
+                </TouchableOpacity>
+            )}
+            */}
 
             <Text style={styles.resultCount}>{schools.length} colleges found</Text>
 
@@ -234,14 +396,19 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
                                     <TrendingUp size={18} color={theme.colors.secondary} />
                                     <Text style={styles.statLabel}>Avg Salary</Text>
                                     <Text style={styles.statValue}>
-                                        ${(selectedSchool.earnings || 0).toLocaleString()}/yr
+                                        {loadingCareer ? '...' : `$${(careerData?.annual_mean_wage || selectedSchool.earnings || 0).toLocaleString()}/yr`}
                                     </Text>
                                 </View>
                                 <View style={styles.statBox}>
                                     <Clock size={18} color={theme.colors.info} />
                                     <Text style={styles.statLabel}>Payback Time</Text>
                                     <Text style={styles.statValue}>
-                                        {selectedSchool.debt_years || '—'} years
+                                        {loadingCareer ? '...' :
+                                            (() => {
+                                                const years = calculatePayback(selectedSchool);
+                                                return years >= 99 ? 'N/A' : `${years} years`;
+                                            })()
+                                        }
                                     </Text>
                                 </View>
                             </View>
@@ -276,6 +443,13 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
                     )}
                 </BlurView>
             </Modal>
+
+            <EditScenarioModal
+                visible={editModalVisible}
+                onClose={() => setEditModalVisible(false)}
+                userProfile={activeProfile}
+                onSave={handleUpdateProfile}
+            />
         </SafeAreaView>
     );
 }
@@ -306,13 +480,32 @@ const getStyles = (theme) => StyleSheet.create({
     label: {
         fontSize: 13,
         color: theme.colors.textDim,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
     },
+    refineBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: theme.colors.glass,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginBottom: 16,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+    },
+    refineText: {
+        fontSize: 14,
+        color: theme.colors.text,
+        fontWeight: '500',
+    },
+
     title: {
         fontSize: 24,
         fontWeight: '700',
         color: theme.colors.text,
+        flex: 1,
+        textAlign: 'center',
     },
     resultCount: {
         fontSize: 14,

@@ -53,15 +53,28 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=
     # UPDATE (User Request): "Students care about sticker price".
     # We now force BOTH to use Sticker Price primarily. 
     # Fallback to Net Price only if Sticker is missing (0/None) to avoid "Free School" bugs.
-    cost_conservative = (sticker_price or net_price or 25000) * 4
-    cost_optimistic   = (sticker_price or net_price or 25000) * 4
+    # ROI Score now uses STICKER Price (High Risk)
+    # UPDATE: Assess loans based on what budget DOESN'T cover
+    annual_cost = sticker_price or net_price or 25000
+    
+    # 1. Display Payback: Intrinsic ROI (Total Cost / Repayment)
+    # Ignores user budget to show "Is this school worth the price?"
+    total_program_cost = annual_cost * 4
+    if annual_repayment > 0:
+        display_debt_years = total_program_cost / annual_repayment
+    else:
+        display_debt_years = 99.9
+        
+    # 2. Scoring Payback: Actual Affordability (Loans needed)
+    loans_per_year = max(0, annual_cost - user_budget)
+    total_loans = loans_per_year * 4
     
     if annual_repayment <= 0:
-        debt_years = 99.9
         score_debt_years = 99.9
+    elif total_loans == 0:
+        score_debt_years = 0 # Fully covered by budget
     else:
-        debt_years = cost_conservative / annual_repayment
-        score_debt_years = cost_optimistic / annual_repayment
+        score_debt_years = total_loans / annual_repayment
         
     # ROI Score now uses STICKER Price (High Risk)
     roi_score = max(0, w_roi - (score_debt_years * 1.5)) 
@@ -144,9 +157,10 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=
             if final_score < 75:
                 final_score = 75
             
-            # If extremely affordable (80% of budget), boost to A-Tier
+            # If extremely affordable (80% of budget), boost slightly but cap at 80 (A-)
+            # We don't want safety schools outranking Ivy League (S-Tier 90+)
             if (cost_to_compare / user_budget) <= 0.8:
-                final_score = max(final_score, 85)
+                final_score = max(final_score, 80)
 
     final_score = max(0, min(100, int(final_score)))
     
@@ -164,13 +178,15 @@ def calculate_compass_score(school_data, user_budget, soc_prefix="00", user_gpa=
         
     return {
         'score': final_score,
-        'debt_payoff_years': round(debt_years, 2) if debt_years != 999 else "Infinite",
+        'debt_payoff_years': round(display_debt_years, 2) if display_debt_years != 99.9 else "Infinite",
         'ranking_tier': tier
     }
 
-def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
+def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None, priorities=None, priority_weights=None):
     """
     Find schools for a target career, filtered by GPA/SAT and sorted by Compass Score.
+    priorities: list of strings like ['greek', 'sports', 'diversity', 'hbcu', 'research']
+    priority_weights: dict mapping priority id to weight (1-10), e.g., {'greek': 4, 'diversity': 7}
     """
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -210,7 +226,9 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
     
     query = f"""
     SELECT DISTINCT s.UNITID, s.INSTNM, s.NET_PRICE, s.EARNINGS_MEDIAN, s.DEBT_MEDIAN,
-            a.SATVR75, a.SATMT75, s.ADM_RATE, s.STICKER_PRICE
+            a.SATVR75, a.SATMT75, s.ADM_RATE, s.STICKER_PRICE,
+            s.HBCU, s.HAS_GREEK, s.HAS_SPORTS, s.DIVERSITY_INDEX, s.LOCALE, s.C21BASIC,
+            s.WEBADDR
     FROM schools s
     JOIN programs p ON s.UNITID = p.UNITID
     LEFT JOIN admissions a ON s.UNITID = a.UNITID
@@ -230,7 +248,7 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
     
     for row in candidates:
         try:
-            unitid, name, net_price, earnings_school, debt, sat_vr, sat_mt, adm_rate, sticker_price = row
+            unitid, name, net_price, earnings_school, debt, sat_vr, sat_mt, adm_rate, sticker_price, hbcu, has_greek, has_sports, diversity_index, locale, c21basic, webaddr = row
             
             # Type Safety: Ensure numeric values
             net_price = float(net_price) if net_price else 0
@@ -238,6 +256,7 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
             debt = float(debt) if debt else 0
             sticker_price = float(sticker_price) if sticker_price else 0
             adm_rate = float(adm_rate) if adm_rate else 1.0
+            diversity_index = float(diversity_index) if diversity_index else 0
             
             # REALISM UPDATE: Use School Median directly for diversity.
             # Fallback to sector_base only if data is missing.
@@ -267,8 +286,10 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
             
             if not admission_chance:
                 continue
-            if is_safety_school:
-                continue
+            # Removed 'Hard Mode' skipping of safety schools. 
+            # Users with high stats still want safeties, they just score based on prestige/ROI.
+            # if is_safety_school:
+            #    continue
                 
             # 4. Calculate Score
             school_data = {
@@ -283,6 +304,38 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
             compass = calculate_compass_score(school_data, user_budget, soc_prefix, user_gpa, user_sat)
             
             final_score = compass['score']
+            
+            # 5. Priority Boosting (Campus Culture Preferences)
+            # Uses priority_weights if provided for personalized scoring
+            # Default weights (research-based): research=8, diversity=7, sports=5, greek=4, food=3
+            DEFAULT_WEIGHTS = {'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+            weights = priority_weights if priority_weights else DEFAULT_WEIGHTS
+            
+            if priorities:
+                priority_boost = 0
+                max_boost_per_priority = 5  # Max 5 points per priority
+                
+                if 'greek' in priorities and has_greek == 1:
+                    weight = weights.get('greek', 4)
+                    priority_boost += (weight / 10) * max_boost_per_priority
+                    
+                if 'sports' in priorities and has_sports == 1:
+                    weight = weights.get('sports', 5)
+                    priority_boost += (weight / 10) * max_boost_per_priority
+                    
+                if 'diversity' in priorities and diversity_index and diversity_index > 0.6:
+                    weight = weights.get('diversity', 7)
+                    priority_boost += (weight / 10) * max_boost_per_priority * 1.6  # High diversity bonus
+                    
+                if 'hbcu' in priorities and hbcu == 1:
+                    priority_boost += 10  # Strong boost for HBCU (not user-adjustable)
+                    
+                if 'research' in priorities and c21basic in (15, 16):
+                    weight = weights.get('research', 8)
+                    base_boost = 8 if c21basic == 15 else 5  # R1 gets more than R2
+                    priority_boost += (weight / 10) * base_boost
+                    
+                final_score = min(100, final_score + priority_boost)
             
             # Update Ranking
             if final_score >= 90: tier = 'S'
@@ -301,7 +354,10 @@ def find_loadout(user_gpa, target_career_soc, user_budget, user_sat=None):
                 'sticker_price': sticker_price, 
                 'earnings': projected_earnings, 
                 'debt': debt,
-                'adm_rate': adm_rate
+                'adm_rate': adm_rate,
+                'school_url': webaddr,
+                'c21basic': c21basic,
+                'has_sports': has_sports
             })
             
         except Exception as e:

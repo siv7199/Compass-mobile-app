@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { Moon, HelpCircle, Trash2, ChevronRight } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Moon, HelpCircle, Trash2, ChevronRight, User, Edit2, Mail, AtSign } from 'lucide-react-native';
 
-export default function ProfileScreen({ navigation, resetTutorial, clearMissions, resetApp }) {
+export default function ProfileScreen({ navigation, resetTutorial, clearMissions, resetApp, userProfile, userInfo }) {
     const { theme, toggleTheme, isDarkMode } = useTheme();
     const styles = getStyles(theme);
 
@@ -33,6 +34,43 @@ export default function ProfileScreen({ navigation, resetTutorial, clearMissions
             </View>
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
+                {/* User Identity Section */}
+                <View style={styles.headerCard}>
+                    <View style={styles.avatarRow}>
+                        {userInfo?.profilePic ? (
+                            <Image source={{ uri: userInfo.profilePic }} style={styles.avatarLarge} />
+                        ) : (
+                            <LinearGradient
+                                colors={[theme.colors.primary + '40', theme.colors.primary + '10']}
+                                style={styles.avatarGradientLarge}
+                            >
+                                <User size={40} color={theme.colors.primary} />
+                            </LinearGradient>
+                        )}
+                        <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={styles.userName}>{userInfo?.name || 'Student'}</Text>
+                            <Text style={styles.userHandle}>@{userInfo?.username || 'user'}</Text>
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>
+                                    {userInfo?.age ? (userInfo.age.charAt(0).toUpperCase() + userInfo.age.slice(1)) : 'Student'}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Mail size={16} color={theme.colors.textDim} />
+                        <Text style={styles.infoText}>{userInfo?.email || 'No email'}</Text>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => navigation.navigate('EditProfile')}
+                    >
+                        <Edit2 size={16} color={theme.colors.primary} />
+                        <Text style={styles.editButtonText}>Edit Profile</Text>
+                    </TouchableOpacity>
+                </View>
                 {/* Appearance Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Appearance</Text>
@@ -143,5 +181,85 @@ const getStyles = (theme) => StyleSheet.create({
     footerText: {
         fontSize: 13,
         color: theme.colors.textDim,
+    },
+    headerCard: {
+        backgroundColor: theme.colors.glass,
+        padding: 20,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        gap: 16,
+    },
+    avatarRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    avatarLarge: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        borderWidth: 2,
+        borderColor: theme.colors.glassBorder,
+    },
+    avatarGradientLarge: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: theme.colors.glassBorder,
+    },
+    userName: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: theme.colors.text,
+    },
+    userHandle: {
+        fontSize: 15,
+        color: theme.colors.textDim,
+    },
+    badge: {
+        alignSelf: 'flex-start',
+        backgroundColor: theme.colors.primary + '20',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 100,
+        marginTop: 4,
+    },
+    badgeText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: theme.colors.primary,
+        textTransform: 'capitalize',
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.glassBorder,
+    },
+    infoText: {
+        fontSize: 15,
+        color: theme.colors.textDim,
+    },
+    editButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: theme.colors.primary,
+        marginTop: 8,
+    },
+    editButtonText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.colors.primary,
     },
 });

@@ -1,0 +1,30 @@
+Request: gpa=4.0 sat=1570 budget=50000 major='13-2051' priorities=['sports', 'research'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=4.0 sat=1600 budget=100000 major='11-2021' priorities=['greek'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=100000 major='17-2141' priorities=['greek'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=100000 major='17-2141' priorities=['greek'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=100000 major='17-2141' priorities=['greek'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=4.0 sat=400 budget=30000 major='17-2051' priorities=['greek', 'research'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 0
+Request: gpa=3.5 sat=1600 budget=100000 major='17-2141' priorities=['greek'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=100000 major='15-1252' priorities=[] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=4.0 sat=1600 budget=100000 major='17-2051' priorities=[] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=30000 major='17-2051' priorities=['greek', 'research'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=30000 major='17-2051' priorities=['greek', 'research'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=3.5 sat=1600 budget=30000 major='17-2051' priorities=['greek', 'research'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=4.0 sat=1600 budget=30000 major='17-2141' priorities=['diversity'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=4.0 sat=1600 budget=30000 major='17-2051' priorities=['diversity'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
+Request: gpa=4.0 sat=1600 budget=100000 major='17-2051' priorities=[] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50

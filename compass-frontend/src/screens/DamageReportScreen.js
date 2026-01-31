@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 import { API_URL } from '../config';
 import { useTheme } from '../theme/ThemeContext';
 import { ChevronLeft, ExternalLink, TrendingUp, DollarSign, Clock, Bookmark, Save, X } from 'lucide-react-native';
+import { OFFLINE_CAREER_DATA } from '../data/CareerData';
 
 export default function DamageReportScreen({ route, navigation, saveMission, savedMissions, deleteMission, saveScenario, userProfile }) {
     const { theme } = useTheme();
@@ -42,55 +43,8 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
     // Offline fallback data
     // Offline data for all supported careers
     // Offline fallback data (Accurate BLS 2023-24 approx)
-    const OFFLINE_DATA = {
-        // Business & Finance
-        "11-1011": { title: "Chief Executive", annual_mean_wage: 246440, projected_growth: -3.0 },
-        "11-2021": { title: "Marketing Manager", annual_mean_wage: 157620, projected_growth: 6.6 },
-        "11-3031": { title: "Financial Manager", annual_mean_wage: 156100, projected_growth: 16.0 },
-        "11-1021": { title: "General Manager", annual_mean_wage: 101270, projected_growth: 4.2 },
-        "11-2022": { title: "Sales Manager", annual_mean_wage: 140600, projected_growth: 4.0 },
-        "11-3121": { title: "HR Manager", annual_mean_wage: 136350, projected_growth: 5.2 },
-        "13-1111": { title: "Management Analyst", annual_mean_wage: 99410, projected_growth: 10.0 },
-        "13-2011": { title: "Accountant", annual_mean_wage: 86740, projected_growth: 4.4 },
-        "23-1011": { title: "Lawyer", annual_mean_wage: 145760, projected_growth: 8.0 },
-        "13-2051": { title: "Financial Analyst", annual_mean_wage: 99890, projected_growth: 8.0 },
-
-        // Engineering & Tech
-        "15-1252": { title: "Software Developer", annual_mean_wage: 132270, projected_growth: 25.0 },
-        "17-2051": { title: "Civil Engineer", annual_mean_wage: 95890, projected_growth: 5.0 },
-        "17-2141": { title: "Mechanical Engineer", annual_mean_wage: 100820, projected_growth: 10.0 },
-        "17-2071": { title: "Electrical Engineer", annual_mean_wage: 109090, projected_growth: 5.0 },
-        "17-2011": { title: "Aerospace Engineer", annual_mean_wage: 130720, projected_growth: 6.0 },
-        "15-2051": { title: "Data Scientist", annual_mean_wage: 108020, projected_growth: 35.2 },
-        "15-1211": { title: "Systems Analyst", annual_mean_wage: 103800, projected_growth: 9.6 },
-        "17-2041": { title: "Chemical Engineer", annual_mean_wage: 112100, projected_growth: 8.0 },
-        "17-2081": { title: "Environmental Eng", annual_mean_wage: 100090, projected_growth: 6.1 },
-        "17-2031": { title: "Biomedical Eng", annual_mean_wage: 100730, projected_growth: 5.1 },
-
-        // Healthcare
-        "29-1248": { title: "Surgeon", annual_mean_wage: 350000, projected_growth: 4.0 }, // Capped logic usually
-        "29-1141": { title: "Registered Nurse", annual_mean_wage: 86070, projected_growth: 5.6 },
-        "29-1021": { title: "Dentist", annual_mean_wage: 175000, projected_growth: 4.4 },
-        "29-1051": { title: "Pharmacist", annual_mean_wage: 136030, projected_growth: 2.6 },
-        "29-1171": { title: "Nurse Practitioner", annual_mean_wage: 126260, projected_growth: 38.0 },
-        "29-1123": { title: "Physical Therapist", annual_mean_wage: 99710, projected_growth: 15.1 },
-        "29-1071": { title: "Physician Assistant", annual_mean_wage: 130020, projected_growth: 26.5 },
-        "19-1042": { title: "Medical Scientist", annual_mean_wage: 100890, projected_growth: 10.0 },
-        "29-1041": { title: "Optometrist", annual_mean_wage: 129280, projected_growth: 8.8 },
-        "19-3031": { title: "Psychologist", annual_mean_wage: 92740, projected_growth: 6.0 },
-
-        // Arts & Media
-        "27-1011": { title: "Art Director", annual_mean_wage: 105130, projected_growth: 5.6 },
-        "27-1024": { title: "Graphic Designer", annual_mean_wage: 64500, projected_growth: 3.2 },
-        "27-3041": { title: "Editor", annual_mean_wage: 76400, projected_growth: -3.8 },
-        "27-1014": { title: "Multimedia Artist", annual_mean_wage: 89000, projected_growth: 8.0 },
-        "27-2012": { title: "Producer", annual_mean_wage: 85320, projected_growth: 6.7 },
-        "27-3031": { title: "PR Specialist", annual_mean_wage: 73250, projected_growth: 6.1 },
-        "27-3043": { title: "Writer", annual_mean_wage: 78060, projected_growth: 4.1 },
-        "17-1011": { title: "Architect", annual_mean_wage: 93310, projected_growth: 5.0 },
-        "27-1025": { title: "Interior Designer", annual_mean_wage: 64130, projected_growth: 4.0 },
-        "15-1255": { title: "UX Designer", annual_mean_wage: 105000, projected_growth: 16.2 }
-    };
+    // Offline fallback data (Accurate BLS 2023-24 approx)
+    // Offline data is now imported from ../data/CareerData.js
 
     useEffect(() => {
         fetchCareerData();
@@ -98,7 +52,7 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
 
     const fetchCareerData = async () => {
         try {
-            const socCode = profile?.targetCareer || "15-1252";
+            const socCode = profile?.targetCareer || profile?.career?.soc || "15-1252";
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
 
@@ -115,8 +69,8 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
             setCareerData(data);
         } catch (error) {
             console.warn("Using offline data:", error.message);
-            const socCode = profile?.targetCareer || "15-1252";
-            const fallback = OFFLINE_DATA[socCode] || {
+            const socCode = profile?.targetCareer || profile?.career?.soc || "15-1252";
+            const fallback = OFFLINE_CAREER_DATA[socCode] || {
                 title: profile?.careerName || "General Career",
                 annual_mean_wage: 65000,
                 projected_growth: 4.0
@@ -152,14 +106,18 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                 deleteMission(savedItem.id);
             }
         } else {
+            const socCode = profile?.targetCareer || profile?.career?.soc || "15-1252";
+            const specificCareer = OFFLINE_CAREER_DATA[socCode];
+            const finalCareerName = careerData?.title || specificCareer?.title || profile?.careerName || "General Career";
+
             saveMission({
                 schoolName: school.school_name,
                 tier: school.ranking,
                 netPrice: school.net_price,
                 cooldown: paybackYears,
                 earnings: effectiveSalary,
-                careerName: profile?.careerName,
-                targetCareer: profile?.targetCareer,
+                careerName: finalCareerName,
+                targetCareer: socCode,
                 date: new Date().toLocaleDateString()
             });
             // Alert.alert("Saved!", `${school.school_name} added to your list.`);
@@ -248,6 +206,9 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
             'purdue': 'https://www.purdue.edu',
             'virginia tech': 'https://www.vt.edu',
             'caltech': 'https://www.caltech.edu',
+            'grand canyon': 'https://www.gcu.edu',
+            'liberty': 'https://www.liberty.edu',
+            'southern new hampshire': 'https://www.snhu.edu',
         };
 
         const partialMatch = Object.entries(partialUrls).find(([key]) =>
@@ -259,34 +220,35 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
             return;
         }
 
-        // Priority 4: Fallback to Google search
-        const searchQuery = encodeURIComponent(school.school_name + ' official admissions website');
-        const url = `https://www.google.com/search?q=${searchQuery}`;
-        Linking.openURL(url);
+        // Priority 4: Smart Google Search (I'm Feeling Lucky style via duckduckgo or specific google params)
+        // Using 'site:.edu' to prioritize official university pages
+        const searchQuery = encodeURIComponent(school.school_name + ' site:.edu official home page');
+        const url = `https://www.google.com/search?q=${searchQuery}&btnI=1`; // Try to redirect to first result if possible, or just standard search
+        // Note: btnI (I'm Feeling Lucky) often blocked/ignored by modern Google, but standard search with site:.edu is much better.
+        const standardUrl = `https://www.google.com/search?q=${encodeURIComponent(school.school_name + ' official website')}`;
+        Linking.openURL(standardUrl);
     };
 
-    // Handle back button - offer to save scenario
+    // Handle back button - conditional save prompt
     const handleBack = () => {
-        if (saveScenario && userProfile) {
-            setShowScenarioModal(true);
-        } else {
-            navigation.goBack();
-        }
+        // Simply go back without prompting to save scenario
+        navigation.goBack();
     };
 
     // Save the current search as a scenario
     const handleSaveScenario = () => {
-        if (saveScenario && userProfile) {
+        const profileToSave = userProfile || route.params?.profile;
+        if (saveScenario && profileToSave) {
             saveScenario({
                 name: scenarioName.trim() || `${school.school_name} - ${profile?.careerName || 'Career'}`,
-                gpa: userProfile.gpa,
-                sat: userProfile.sat,
-                budget: userProfile.budget,
-                career: userProfile.career,
-                locationType: userProfile.locationType,
-                priorities: userProfile.priorities,
-                specialTypes: userProfile.specialTypes,
-                interests: userProfile.interests,
+                gpa: profileToSave.gpa,
+                sat: profileToSave.sat,
+                budget: profileToSave.budget,
+                career: profileToSave.career,
+                locationType: profileToSave.locationType,
+                priorities: profileToSave.priorities,
+                specialTypes: profileToSave.specialTypes,
+                interests: profileToSave.interests,
                 savedCollegeIds: [],
                 createdAt: new Date().toISOString()
             });
@@ -355,7 +317,7 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                     <View style={[styles.costRow, styles.highlightRow]}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 10 }}>
                             <Clock size={16} color={theme.colors.secondary} />
-                            <Text style={[styles.costLabel, { flex: 1, flexWrap: 'wrap' }]}>Career-Adjusted Payback</Text>
+                            <Text style={[styles.costLabel, { flex: 1, flexWrap: 'wrap' }]}>Payback Time</Text>
                         </View>
                         <Text style={[styles.costValue, { color: theme.colors.secondary }]}>{paybackYears} years</Text>
                     </View>
@@ -373,6 +335,22 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                         Based on paying 20% of {careerData?.title || 'average'} salary toward loans after graduation
                     </Text>
                 </View>
+
+                {/* Zero-Day Simulator Button */}
+                <TouchableOpacity
+                    style={styles.simulatorBtn}
+                    onPress={() => navigation.navigate('ZeroDay', {
+                        school,
+                        profile,
+                        careerData
+                    })}
+                >
+                    <Text style={styles.simulatorBtnEmoji}>🎯</Text>
+                    <View style={styles.simulatorBtnContent}>
+                        <Text style={styles.simulatorBtnTitle}>Zero-Day Simulator</Text>
+                        <Text style={styles.simulatorBtnSubtitle}>See your debt-free date →</Text>
+                    </View>
+                </TouchableOpacity>
 
                 {/* Actions */}
                 <View style={styles.actions}>
@@ -428,7 +406,7 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
@@ -550,6 +528,33 @@ const getStyles = (theme) => StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
         marginTop: 8,
+    },
+    simulatorBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.primary + '20',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 2,
+        borderColor: theme.colors.primary,
+        gap: 12,
+    },
+    simulatorBtnEmoji: {
+        fontSize: 28,
+    },
+    simulatorBtnContent: {
+        flex: 1,
+    },
+    simulatorBtnTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: theme.colors.text,
+    },
+    simulatorBtnSubtitle: {
+        fontSize: 13,
+        color: theme.colors.primary,
+        marginTop: 2,
     },
     actionBtn: {
         flex: 1,

@@ -77,7 +77,6 @@ const CAMPUS_SETTINGS = [
 ];
 
 const CAMPUS_PRIORITIES = [
-    { id: 'safety', label: 'Campus Safety', icon: Shield },
     { id: 'diversity', label: 'Diversity', icon: Users },
     { id: 'food', label: 'Good Food', icon: null },
     { id: 'sports', label: 'Sports Culture', icon: null },
@@ -105,6 +104,8 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
 
+    const [processing, setProcessing] = useState(false);
+
     // Enhanced user data
     const [userData, setUserData] = useState({
         gpa: '',
@@ -117,6 +118,14 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
         priorities: [],          // array of priority ids
         specialTypes: [],        // array of special institution ids
         interests: '',           // free text
+        // Priority weights (1-10 scale, research-based defaults)
+        priorityWeights: {
+            research: 8,    // Strong career/grad school impact
+            diversity: 7,   // Learning outcomes & workforce prep
+            sports: 5,      // Social experience
+            greek: 4,       // Social benefit
+            food: 3,        // Quality of life
+        },
     });
 
     const addMessage = (text, isUser = false, stepId = null) => {
@@ -134,7 +143,7 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
             setTimeout(() => {
                 addMessage("I'll ask you a few questions about your academics, career goals, and preferences.");
                 setTimeout(() => {
-                    addMessage("What's your GPA? (Use your unweighted GPA on a 0-4.0 scale)");
+                    addMessage("What's your unweighted GPA? (0-4.0 scale)");
                     setCurrentStep(1);
                 }, 400);
             }, 600);
@@ -142,9 +151,12 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
     }, []);
 
     const handleGPASubmit = () => {
+        if (processing) return;
+        setProcessing(true);
         const gpa = parseFloat(inputValue);
         if (isNaN(gpa) || gpa < 0 || gpa > 4.0) {
             addMessage("Please enter a valid GPA between 0 and 4.0");
+            setProcessing(false);
             return;
         }
 
@@ -163,11 +175,14 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
             setTimeout(() => {
                 addMessage("What's your SAT score? (400-1600, or type 'skip' if you haven't taken it)");
                 setCurrentStep(2);
+                setProcessing(false);
             }, 400);
         }, 300);
     };
 
     const handleSATSubmit = () => {
+        if (processing) return;
+        setProcessing(true);
         const input = inputValue.toLowerCase().trim();
 
         if (['skip', 'n/a', 'idk', 'no', ''].includes(input)) {
@@ -177,6 +192,7 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
             const sat = parseInt(inputValue);
             if (isNaN(sat) || sat < 400 || sat > 1600) {
                 addMessage("Please enter a valid SAT score between 400 and 1600, or type 'skip'");
+                setProcessing(false);
                 return;
             }
             addMessage(inputValue, true, 2);
@@ -188,6 +204,7 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
         setTimeout(() => {
             addMessage("Now, what career area interests you most?");
             setCurrentStep(3);
+            setProcessing(false);
         }, 300);
     };
 
@@ -295,9 +312,42 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
         addMessage(displayText, true, 7);
 
         setTimeout(() => {
+            // If user selected priorities, ask them to rate importance
+            if (userData.priorities.length > 0) {
+                addMessage("Great choices! Now rate how important each priority is to you (1-10):");
+                setCurrentStep(7.5);
+            } else {
+                // No priorities selected, skip to special types
+                addMessage("Are you interested in any special types of institutions?");
+                setCurrentStep(8);
+            }
+        }, 300);
+    };
+
+    const handlePriorityRatingsConfirm = () => {
+        // Build a display summary of ratings
+        const ratingSummary = userData.priorities.map(id => {
+            const priority = CAMPUS_PRIORITIES.find(p => p.id === id);
+            const weight = userData.priorityWeights[id] || 5;
+            return `${priority?.label}: ${weight}/10`;
+        }).join(', ');
+
+        addMessage(ratingSummary, true, 7.5);
+
+        setTimeout(() => {
             addMessage("Are you interested in any special types of institutions?");
             setCurrentStep(8);
         }, 300);
+    };
+
+    const updatePriorityWeight = (priorityId, weight) => {
+        setUserData(prev => ({
+            ...prev,
+            priorityWeights: {
+                ...prev.priorityWeights,
+                [priorityId]: weight
+            }
+        }));
     };
 
     const handleSpecialTypesConfirm = () => {
@@ -530,6 +580,50 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
             );
         }
 
+        // Priority rating sliders (step 7.5)
+        if (currentStep === 7.5) {
+            const selectedPriorities = CAMPUS_PRIORITIES.filter(p =>
+                userData.priorities.includes(p.id)
+            );
+            return (
+                <View style={styles.multiSelectContainer}>
+                    <View style={{ gap: 16 }}>
+                        {selectedPriorities.map((priority) => {
+                            const weight = userData.priorityWeights[priority.id] || 5;
+                            return (
+                                <View key={priority.id} style={styles.sliderContainer}>
+                                    <View style={styles.sliderHeader}>
+                                        <Text style={styles.sliderLabel}>{priority.label}</Text>
+                                        <Text style={styles.sliderValue}>{weight}/10</Text>
+                                    </View>
+                                    <View style={styles.sliderTrack}>
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                            <TouchableOpacity
+                                                key={num}
+                                                style={[
+                                                    styles.sliderDot,
+                                                    num <= weight && styles.sliderDotActive
+                                                ]}
+                                                onPress={() => updatePriorityWeight(priority.id, num)}
+                                            />
+                                        ))}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.confirmButton}
+                        onPress={handlePriorityRatingsConfirm}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.confirmButtonText}>Continue</Text>
+                        <ChevronRight size={18} color="#000" />
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
         // Special institution types (step 8)
         if (currentStep === 8) {
             return (
@@ -598,10 +692,10 @@ export default function OnboardingScreen({ navigation, onComplete, userInfo }) {
                                     currentStep === 9 ? "Type interests or 'skip'" : ""
                     }
                     placeholderTextColor={theme.colors.textDim}
-                    keyboardType={(currentStep === 1 || currentStep === 4) ? "numeric" : "default"}
+                    keyboardType={(currentStep === 1) ? "numeric" : "default"}
                     onSubmitEditing={handleSubmit}
-                    returnKeyType="done"
-                    blurOnSubmit={false}
+                    returnKeyType="default"
+                    blurOnSubmit={true}
                 />
                 <TouchableOpacity
                     style={[styles.sendButton, (!inputValue.trim() && currentStep !== 9) && { opacity: 0.5 }]}
@@ -913,5 +1007,43 @@ const getStyles = (theme) => StyleSheet.create({
         fontSize: 17,
         fontWeight: '600',
         color: '#000',
+    },
+    // Priority rating slider styles
+    sliderContainer: {
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
+        borderRadius: 12,
+        padding: 16,
+    },
+    sliderHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    sliderLabel: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.colors.text,
+    },
+    sliderValue: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: theme.colors.primary,
+    },
+    sliderTrack: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 6,
+    },
+    sliderDot: {
+        flex: 1,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: theme.colors.glassBorder,
+    },
+    sliderDotActive: {
+        backgroundColor: theme.colors.primary,
     },
 });

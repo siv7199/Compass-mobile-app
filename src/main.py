@@ -32,6 +32,8 @@ class ScoreRequest(BaseModel):
     sat: Optional[int] = None
     budget: int
     major: str # Maps to target_career_soc
+    priorities: Optional[List[str]] = None  # e.g., ['greek', 'sports', 'diversity', 'hbcu']
+    priorityWeights: Optional[dict] = None  # e.g., {'greek': 4, 'sports': 5, 'diversity': 7}
 
 class SchoolScore(BaseModel):
     school_id: int
@@ -55,12 +57,22 @@ def get_score(request: ScoreRequest):
     try:
         # Pass request.major as target_career_soc
         # Pass request.sat if provided
+        # Log request to file for debugging
+        with open("request_debug.txt", "a") as f:
+            f.write(f"Request: {request}\n")
+
         results = compass_logic.find_loadout(
             user_gpa=request.gpa,
             target_career_soc=request.major,
             user_budget=request.budget,
-            user_sat=request.sat
+            user_sat=request.sat,
+            priorities=request.priorities,
+            priority_weights=request.priorityWeights
         )
+        
+        with open("request_debug.txt", "a") as f:
+            f.write(f"Results found: {len(results)}\n")
+
         # Prompt said "Top 20 schools"
         # Prompt said "Top 20 schools", but we give 50 for variety
         # Limiting to 50 to prevent Timeouts over Tunnel

@@ -77,7 +77,7 @@ export default function ModeSelectionScreen({ userInfo, onSelectMode }) {
                             <Text style={styles.modeName}>Strategy Mode</Text>
                             <Text style={styles.modeAudience}>For Juniors & Seniors</Text>
                             <Text style={styles.modeDesc}>
-                                Personalized recommendations & ROI analysis
+                                Find your ideal colleges with personalized recommendations based on your goals, budget & ROI analysis. This mode focuses on college discovery and planning.
                             </Text>
                         </TouchableOpacity>
                     </View>

@@ -44,6 +44,16 @@ const FAQS = [
         a: "The system currently uses SAT data for admission estimates. ACT support is planned for a future update.",
         icon: HelpCircle
     },
+    {
+        q: "Are the salary numbers accurate?",
+        a: "We use the latest Bureau of Labor Statistics (BLS) data. Actual salaries vary by location and experience.",
+        icon: DollarSign
+    },
+    {
+        q: "What if I'm undecided?",
+        a: "That's okay! Choose a general field like 'Liberal Arts' or the broad area that interests you most to get started.",
+        icon: HelpCircle
+    },
 ];
 
 export default function HelpScreen({ navigation }) {

@@ -14,6 +14,8 @@ import UserProfileScreen from './src/screens/UserProfileScreen';
 import ModeSelectionScreen from './src/screens/ModeSelectionScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 
+import EmptyScenarioScreen from './src/screens/EmptyScenarioScreen';
+
 // Screens - Main App (Renamed for clarity)
 import LobbyScreen from './src/screens/LobbyScreen'; // Career Selection
 import StatsScreen from './src/screens/StatsScreen'; // Profile Setup
@@ -23,6 +25,7 @@ import MissionLogScreen from './src/screens/MissionLogScreen'; // Summary
 import ProfileScreen from './src/screens/ProfileScreen';
 import HelpScreen from './src/screens/HelpScreen';
 import PortfolioScreen from './src/screens/PortfolioScreen';
+import ZeroDaySimulator from './src/screens/ZeroDaySimulator';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -59,6 +62,23 @@ function App() {
 
   // Saved scenarios
   const [savedScenarios, setSavedScenarios] = useState([]);
+
+  // Saved Zero-Day simulations
+  const [savedSimulations, setSavedSimulations] = useState([]);
+
+  const saveSimulation = (simulation) => {
+    const simWithId = {
+      ...simulation,
+      id: Date.now().toString(),
+      savedAt: new Date().toISOString()
+    };
+    setSavedSimulations(prev => [simWithId, ...prev]);
+    return simWithId.id;
+  };
+
+  const deleteSimulation = (simId) => {
+    setSavedSimulations(prev => prev.filter(s => s.id !== simId));
+  };
 
   const saveCollege = (college) => {
     const collegeWithId = {
@@ -108,10 +128,19 @@ function App() {
     setSavedScenarios(prev => prev.filter(s => s.id !== scenarioId));
   };
 
+  const closeScenario = () => {
+    setUserProfile(null);
+  };
+
   // Handle user profile (name, age, etc.) completion
   const handleUserInfoComplete = (info) => {
-    setUserInfo(info);
+    setUserInfo(info); // Initial setup
     setAppState('modeSelection');
+  };
+
+  // Allow updates from Settings
+  const updateUserInfo = (info) => {
+    setUserInfo(prev => ({ ...prev, ...info }));
   };
 
   // Handle mode selection
@@ -194,8 +223,14 @@ function App() {
     saveScenario,
     updateScenario,
     deleteScenario,
+    closeScenario,
+    savedSimulations,
+    saveSimulation,
+    deleteSimulation,
     resetApp,
-    restartOnboarding
+    restartOnboarding,
+    updateUserInfo,
+    setUserProfile,
   };
 
   return (
@@ -271,9 +306,16 @@ function ExploreStack({ appContext }) {
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
-      initialRouteName={hasCompleteProfile ? "Results" : "CareerSelect"}
-      key={hasCompleteProfile ? "results-flow" : "onboarding-flow"}
+      initialRouteName={hasCompleteProfile ? "Results" : "EmptyScenario"}
     >
+      <Stack.Screen name="EmptyScenario">
+        {(props) => (
+          <EmptyScenarioScreen
+            {...props}
+            restartOnboarding={appContext.restartOnboarding}
+          />
+        )}
+      </Stack.Screen>
       <Stack.Screen name="CareerSelect">
         {(props) => (
           <LobbyScreen
@@ -299,11 +341,15 @@ function ExploreStack({ appContext }) {
         {(props) => (
           <MissionMapScreen
             {...props}
+            userProfile={appContext.userProfile}
             showTutorial={false}
             closeTutorial={() => { }}
             saveMission={appContext.saveCollege}
             savedMissions={appContext.savedColleges}
             deleteMission={appContext.deleteCollege}
+            saveScenario={appContext.saveScenario}
+            updateScenario={appContext.updateScenario}
+            closeScenario={appContext.closeScenario}
             restartOnboarding={appContext.restartOnboarding}
             showPvPTutorial={false}
             closePvPTutorial={() => { }}
@@ -322,6 +368,16 @@ function ExploreStack({ appContext }) {
             deleteMission={appContext.deleteCollege}
             saveScenario={appContext.saveScenario}
             userProfile={appContext.userProfile}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="ZeroDay">
+        {(props) => (
+          <ZeroDaySimulator
+            {...props}
+            saveSimulation={appContext.saveSimulation}
+            savedSimulations={appContext.savedSimulations}
+            deleteSimulation={appContext.deleteSimulation}
           />
         )}
       </Stack.Screen>
@@ -353,6 +409,10 @@ function SavedStack({ appContext }) {
             savedScenarios={appContext.savedScenarios}
             deleteScenario={appContext.deleteScenario}
             updateScenario={appContext.updateScenario}
+            savedSimulations={appContext.savedSimulations}
+            deleteSimulation={appContext.deleteSimulation}
+            userProfile={appContext.userProfile}
+            setUserProfile={appContext.setUserProfile}
           />
         )}
       </Stack.Screen>
@@ -369,7 +429,30 @@ function SavedStack({ appContext }) {
           />
         )}
       </Stack.Screen>
-    </Stack.Navigator>
+      <Stack.Screen name="ZeroDay">
+        {(props) => (
+          <ZeroDaySimulator
+            {...props}
+            saveSimulation={appContext.saveSimulation}
+            savedSimulations={appContext.savedSimulations}
+            deleteSimulation={appContext.deleteSimulation}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="ScenarioDetails">
+        {(props) => (
+          <MissionMapScreen
+            {...props}
+            showTutorial={false}
+            closeTutorial={() => { }}
+            saveMission={appContext.saveCollege}
+            savedMissions={appContext.savedColleges}
+            deleteMission={appContext.deleteCollege}
+            saveScenario={appContext.saveScenario}
+          />
+        )}
+      </Stack.Screen>
+    </Stack.Navigator >
   );
 }
 
@@ -383,10 +466,25 @@ function ProfileStack({ appContext }) {
             {...props}
             resetTutorial={() => { }}
             savedMissions={[]}
+            userProfile={appContext.userProfile}
+            userInfo={appContext.userInfo}
             showTutorial={false}
             closeTutorial={() => { }}
             clearMissions={appContext.clearColleges}
             resetApp={appContext.resetApp}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="EditProfile">
+        {(props) => (
+          <UserProfileScreen
+            {...props}
+            initialData={appContext.userInfo}
+            isEditing={true}
+            onComplete={(info) => {
+              appContext.updateUserInfo(info);
+              props.navigation.goBack();
+            }}
           />
         )}
       </Stack.Screen>

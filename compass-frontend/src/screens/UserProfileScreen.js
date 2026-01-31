@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { User, Mail, AtSign, ChevronRight, Camera, ChevronDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 
 const AGE_OPTIONS = [
     { label: 'Freshman (14-15)', value: 'freshman' },
@@ -13,18 +14,45 @@ const AGE_OPTIONS = [
     { label: 'Gap Year / Other', value: 'other' },
 ];
 
-export default function UserProfileScreen({ onComplete }) {
+export default function UserProfileScreen({ navigation, onComplete, initialData, isEditing = false }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
 
     const [step, setStep] = useState(1); // 1 = profile info, 2 = age
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [username, setUsername] = useState('');
-    const [age, setAge] = useState(null);
+    const [name, setName] = useState(initialData?.name || '');
+    const [email, setEmail] = useState(initialData?.email || '');
+    const [username, setUsername] = useState(initialData?.username || '');
+    const [age, setAge] = useState(initialData?.age || null);
     const [showAgePicker, setShowAgePicker] = useState(false);
+    const [profilePic, setProfilePic] = useState(initialData?.profilePic || null);
 
-    const isStep1Valid = name.trim().length >= 2;
+    const pickImage = async () => {
+        try {
+            // Ask user for permission
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please grant camera roll permissions to add a profile picture.');
+                return;
+            }
+
+            // Launch image picker
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setProfilePic(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.log('Error picking image:', error);
+            Alert.alert('Error', 'Failed to pick image');
+        }
+    };
+
+    const isStep1Valid = name.trim().length >= 2 && email.trim().length > 0 && username.trim().length > 0;
     const isStep2Valid = age !== null;
 
     const handleContinue = () => {
@@ -36,7 +64,7 @@ export default function UserProfileScreen({ onComplete }) {
                 email: email.trim(),
                 username: username.trim(),
                 age,
-                profilePic: null, // Placeholder for future implementation
+                profilePic: profilePic,
             });
         }
     };
@@ -44,20 +72,29 @@ export default function UserProfileScreen({ onComplete }) {
     const renderStep1 = () => (
         <>
             <View style={styles.header}>
-                <Text style={styles.title}>Let's get to know you</Text>
+                {isEditing && (
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 12 }}>
+                        <Text style={{ color: theme.colors.primary, fontSize: 16 }}>← Back</Text>
+                    </TouchableOpacity>
+                )}
+                <Text style={styles.title}>{isEditing ? "Edit Profile" : "Let's get to know you"}</Text>
                 <Text style={styles.subtitle}>
-                    This helps us personalize your experience
+                    {isEditing ? "Update your personal details" : "This helps us personalize your experience"}
                 </Text>
             </View>
 
-            {/* Profile Picture Placeholder */}
-            <TouchableOpacity style={styles.avatarContainer}>
-                <LinearGradient
-                    colors={[theme.colors.primary + '40', theme.colors.primary + '10']}
-                    style={styles.avatarGradient}
-                >
-                    <User size={40} color={theme.colors.primary} />
-                </LinearGradient>
+            {/* Profile Picture */}
+            <TouchableOpacity style={styles.avatarContainer} onPress={pickImage}>
+                {profilePic ? (
+                    <Image source={{ uri: profilePic }} style={styles.avatarImage} />
+                ) : (
+                    <LinearGradient
+                        colors={[theme.colors.primary + '40', theme.colors.primary + '10']}
+                        style={styles.avatarGradient}
+                    >
+                        <User size={40} color={theme.colors.primary} />
+                    </LinearGradient>
+                )}
                 <View style={styles.cameraButton}>
                     <Camera size={14} color="#fff" />
                 </View>
@@ -81,7 +118,7 @@ export default function UserProfileScreen({ onComplete }) {
                     <Mail size={20} color={theme.colors.textDim} style={styles.inputIcon} />
                     <TextInput
                         style={styles.input}
-                        placeholder="Email (optional)"
+                        placeholder="Email *"
                         placeholderTextColor={theme.colors.textDim}
                         value={email}
                         onChangeText={setEmail}
@@ -94,7 +131,7 @@ export default function UserProfileScreen({ onComplete }) {
                     <AtSign size={20} color={theme.colors.textDim} style={styles.inputIcon} />
                     <TextInput
                         style={styles.input}
-                        placeholder="Username (optional)"
+                        placeholder="Username *"
                         placeholderTextColor={theme.colors.textDim}
                         value={username}
                         onChangeText={setUsername}
@@ -175,9 +212,11 @@ export default function UserProfileScreen({ onComplete }) {
                         activeOpacity={0.8}
                     >
                         <Text style={styles.continueButtonText}>
-                            {step === 2 ? 'Continue' : 'Next'}
+                            {step === 2
+                                ? (isEditing ? 'Save Changes' : 'Continue')
+                                : 'Next'}
                         </Text>
-                        <ChevronRight size={20} color="#000" />
+                        {(!isEditing || step === 1) && <ChevronRight size={20} color="#000" />}
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
@@ -235,6 +274,13 @@ const getStyles = (theme) => StyleSheet.create({
         borderRadius: 50,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 2,
+        borderColor: theme.colors.glassBorder,
+    },
+    avatarImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
         borderWidth: 2,
         borderColor: theme.colors.glassBorder,
     },

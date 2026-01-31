@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { Trash2, Star, ExternalLink, TrendingUp, DollarSign, GraduationCap, Layers, School, Edit2, X, Check, ChevronRight, Briefcase } from 'lucide-react-native';
+import { Trash2, Star, ExternalLink, TrendingUp, DollarSign, GraduationCap, Layers, School, Edit2, X, Check, ChevronRight, Briefcase, Settings, Calendar } from 'lucide-react-native';
+import EditScenarioModal from './EditScenarioModal';
 
 export default function PortfolioScreen({
     navigation,
@@ -11,7 +12,11 @@ export default function PortfolioScreen({
     toggleFavorite,
     savedScenarios = [],
     deleteScenario,
-    updateScenario
+    updateScenario,
+    savedSimulations = [],
+    deleteSimulation,
+    userProfile, // Active global profile from App.js
+    setUserProfile
 }) {
     const { theme } = useTheme();
     const styles = getStyles(theme);
@@ -21,6 +26,9 @@ export default function PortfolioScreen({
 
     // Rename modal state
     const [renameModal, setRenameModal] = useState({ visible: false, scenario: null, newName: '' });
+    const [editModal, setEditModal] = useState({ visible: false, scenario: null });
+
+
 
     // ===================
     // SCHOOLS TAB HANDLERS
@@ -53,7 +61,8 @@ export default function PortfolioScreen({
             profile: {
                 targetCareer: college.targetCareer || "15-1252",
                 careerName: college.careerName || "General Career"
-            }
+            },
+            fromSaved: true
         });
     };
 
@@ -71,6 +80,17 @@ export default function PortfolioScreen({
         );
     };
 
+    const handleDeleteSimulation = (simulationId) => {
+        Alert.alert(
+            "Delete Simulation",
+            "Are you sure you want to delete this simulation?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete", style: "destructive", onPress: () => deleteSimulation && deleteSimulation(simulationId) }
+            ]
+        );
+    };
+
     const openRenameModal = (scenario) => {
         setRenameModal({ visible: true, scenario, newName: scenario.name || '' });
     };
@@ -80,6 +100,13 @@ export default function PortfolioScreen({
             updateScenario(renameModal.scenario.id, { name: renameModal.newName.trim() });
         }
         setRenameModal({ visible: false, scenario: null, newName: '' });
+    };
+
+    const handleUpdateCriteria = (updatedProfile) => {
+        if (updatedProfile && updatedProfile.id && updateScenario) {
+            updateScenario(updatedProfile.id, updatedProfile);
+        }
+        setEditModal({ visible: false, scenario: null });
     };
 
     // Portfolio Insight
@@ -114,8 +141,8 @@ export default function PortfolioScreen({
                         onPress={() => setActiveTab('schools')}
                     >
                         <School size={16} color={activeTab === 'schools' ? '#000' : theme.colors.textDim} />
-                        <Text style={[styles.tabText, activeTab === 'schools' && styles.tabTextActive]}>
-                            Schools ({savedMissions.length})
+                        <Text style={[styles.tabText, activeTab === 'schools' && styles.tabTextActive]} numberOfLines={1} adjustsFontSizeToFit>
+                            Schools
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -123,8 +150,17 @@ export default function PortfolioScreen({
                         onPress={() => setActiveTab('scenarios')}
                     >
                         <Layers size={16} color={activeTab === 'scenarios' ? '#000' : theme.colors.textDim} />
-                        <Text style={[styles.tabText, activeTab === 'scenarios' && styles.tabTextActive]}>
-                            Scenarios ({savedScenarios.length})
+                        <Text style={[styles.tabText, activeTab === 'scenarios' && styles.tabTextActive]} numberOfLines={1} adjustsFontSizeToFit>
+                            Scenarios
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'simulations' && styles.tabActive]}
+                        onPress={() => setActiveTab('simulations')}
+                    >
+                        <Calendar size={16} color={activeTab === 'simulations' ? '#000' : theme.colors.textDim} />
+                        <Text style={[styles.tabText, activeTab === 'simulations' && styles.tabTextActive]} numberOfLines={1} adjustsFontSizeToFit>
+                            Sims
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -137,7 +173,7 @@ export default function PortfolioScreen({
             </View>
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
-                {activeTab === 'schools' ? (
+                {activeTab === 'schools' && (
                     // ============ SCHOOLS VIEW ============
                     savedMissions.length === 0 ? (
                         <View style={styles.emptyState}>
@@ -178,7 +214,7 @@ export default function PortfolioScreen({
                                         <DollarSign size={14} color={theme.colors.primary} />
                                         <Text style={styles.statLabel}>Annual Cost</Text>
                                         <Text style={styles.statValue}>
-                                            ${(college.sticker_price || college.netPrice || 0).toLocaleString()}
+                                            ${(college.netPrice || college.sticker_price || 0).toLocaleString()}
                                         </Text>
                                     </View>
                                     <View style={styles.statItem}>
@@ -202,7 +238,9 @@ export default function PortfolioScreen({
                             </View>
                         ))
                     )
-                ) : (
+                )}
+
+                {activeTab === 'scenarios' && (
                     // ============ SCENARIOS VIEW ============
                     savedScenarios.length === 0 ? (
                         <View style={styles.emptyState}>
@@ -220,8 +258,11 @@ export default function PortfolioScreen({
                                         {scenario.name || `Scenario ${index + 1}`}
                                     </Text>
                                     <View style={styles.cardActions}>
+                                        <TouchableOpacity onPress={() => setEditModal({ visible: true, scenario })} style={styles.actionBtn}>
+                                            <Settings size={18} color={theme.colors.primary} />
+                                        </TouchableOpacity>
                                         <TouchableOpacity onPress={() => openRenameModal(scenario)} style={styles.actionBtn}>
-                                            <Edit2 size={18} color={theme.colors.primary} />
+                                            <Edit2 size={18} color={theme.colors.textDim} />
                                         </TouchableOpacity>
                                         <TouchableOpacity onPress={() => handleDeleteScenario(scenario.id)} style={styles.actionBtn}>
                                             <Trash2 size={18} color={theme.colors.danger} />
@@ -264,13 +305,88 @@ export default function PortfolioScreen({
                                     )}
                                 </View>
 
-                                <TouchableOpacity style={styles.viewScenarioBtn}>
+                                <TouchableOpacity
+                                    style={styles.viewScenarioBtn}
+                                    onPress={() => {
+                                        navigation.navigate('ScenarioDetails', {
+                                            userProfile: scenario
+                                        });
+                                    }}
+                                >
                                     <Text style={styles.viewScenarioBtnText}>View Details</Text>
                                     <ChevronRight size={16} color={theme.colors.primary} />
                                 </TouchableOpacity>
                             </View>
                         ))
                     )
+                )}
+
+                {activeTab === 'simulations' && (
+                    <View>
+                        {savedSimulations.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Calendar size={48} color={theme.colors.textDim} />
+                                <Text style={styles.emptyTitle}>No Simulations Saved</Text>
+                                <Text style={styles.emptyText}>
+                                    Run a Zero-Day Simulator and save your projections.
+                                </Text>
+                            </View>
+                        ) : (
+                            savedSimulations.map((sim, index) => (
+                                <View key={sim.id || index} style={styles.scenarioCard}>
+                                    <View style={styles.scenarioHeader}>
+                                        <Text style={styles.scenarioName}>
+                                            {sim.schoolName || `Simulation ${index + 1}`}
+                                        </Text>
+                                        <View style={styles.cardActions}>
+                                            <TouchableOpacity onPress={() => handleDeleteSimulation(sim.id)} style={styles.actionBtn}>
+                                                <Trash2 size={18} color={theme.colors.danger} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    <Text style={styles.scenarioDate}>
+                                        {sim.careerName || 'General Career'}
+                                    </Text>
+
+                                    <View style={styles.scenarioDetails}>
+                                        <View style={styles.detailRow}>
+                                            <Text style={styles.detailLabel}>Debt-Free Date:</Text>
+                                            <Text style={[styles.detailValue, { color: theme.colors.primary }]}>
+                                                {sim.debtFreeDate || 'N/A'}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.detailRow}>
+                                            <Text style={styles.detailLabel}>Total Debt:</Text>
+                                            <Text style={styles.detailValue}>
+                                                ${(sim.totalDebt || 0).toLocaleString()}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.detailRow}>
+                                            <Text style={styles.detailLabel}>Est. Salary:</Text>
+                                            <Text style={styles.detailValue}>
+                                                ${(sim.salary || 0).toLocaleString()}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <TouchableOpacity
+                                        style={styles.viewScenarioBtn}
+                                        onPress={() => {
+                                            navigation.navigate('ZeroDay', {
+                                                simulation: sim,
+                                                school: sim.school, // Pass full object if available
+                                                careerData: sim.careerData
+                                            });
+                                        }}
+                                    >
+                                        <Text style={styles.viewScenarioBtnText}>View Details</Text>
+                                        <ChevronRight size={16} color={theme.colors.primary} />
+                                    </TouchableOpacity>
+                                </View>
+                            ))
+                        )}
+                    </View>
                 )}
             </ScrollView>
 
@@ -299,7 +415,14 @@ export default function PortfolioScreen({
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+
+            <EditScenarioModal
+                visible={editModal.visible}
+                userProfile={editModal.scenario}
+                onClose={() => setEditModal({ visible: false, scenario: null })}
+                onSave={handleUpdateCriteria}
+            />
+        </SafeAreaView >
     );
 }
 
@@ -329,25 +452,22 @@ const getStyles = (theme) => StyleSheet.create({
         paddingBottom: 16,
     },
     label: {
-        fontSize: 13,
+        fontSize: 12,
         color: theme.colors.textDim,
-        marginBottom: 4,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
     title: {
-        fontSize: 28,
+        fontSize: 26,
         fontWeight: '700',
         color: theme.colors.text,
-        marginBottom: 16,
+        marginBottom: 20,
     },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: theme.colors.glass,
-        borderRadius: 12,
-        padding: 4,
-        borderWidth: 1,
-        borderColor: theme.colors.glassBorder,
+        gap: 8, // Reduced gap to give pills more room
+        marginBottom: 4,
     },
     tab: {
         flex: 1,
@@ -355,20 +475,24 @@ const getStyles = (theme) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
-        gap: 6,
-        borderRadius: 8,
+        paddingHorizontal: 2, // Minimal side padding
+        gap: 4, // Tighter icon-text gap
+        borderRadius: 20,
+        backgroundColor: theme.colors.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.glassBorder,
     },
     tabActive: {
         backgroundColor: theme.colors.primary,
+        borderColor: theme.colors.primary,
     },
     tabText: {
-        fontSize: 14,
-        fontWeight: '500',
+        fontSize: 13,
+        fontWeight: '600',
         color: theme.colors.textDim,
     },
     tabTextActive: {
-        color: '#000',
-        fontWeight: '600',
+        color: '#000', // Black text on active pill
     },
     insightBox: {
         marginTop: 16,
