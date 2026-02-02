@@ -8,6 +8,7 @@ import axios from 'axios';
 import { API_URL } from '../config';
 import EditScenarioModal from './EditScenarioModal';
 import { OFFLINE_CAREER_DATA } from '../data/CareerData';
+import { track, EVENTS } from '../utils/analytics';
 
 const TierBadge = ({ tier }) => {
     const { theme } = useTheme();
@@ -168,6 +169,13 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
                 { headers: { "Bypass-Tunnel-Reminder": "true" }, timeout: 15000 }
             );
             setSchools(response.data);
+
+            // Track search results viewed
+            track(EVENTS.SEARCH_RESULTS_VIEWED, {
+                result_count: response.data.length,
+                has_career: !!activeProfile?.career,
+                budget: activeProfile?.budget,
+            });
         } catch (error) {
             console.log("Network unavailable. Using sample data.");
             setSchools([
@@ -238,7 +246,15 @@ export default function MissionMapScreen({ navigation, route, saveMission, saved
     const renderItem = ({ item }) => (
         <TouchableOpacity
             style={styles.card}
-            onPress={() => setSelectedSchool(item)}
+            onPress={() => {
+                setSelectedSchool(item);
+                // Track school engagement
+                track(EVENTS.SCHOOL_PROFILE_ENGAGED, {
+                    school_name: item.school_name,
+                    tier: item.ranking,
+                    compass_score: item.compass_score,
+                });
+            }}
         >
             <TierBadge tier={item.ranking} />
             <View style={styles.cardContent}>

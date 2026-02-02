@@ -6,6 +6,7 @@ import { API_URL } from '../config';
 import { useTheme } from '../theme/ThemeContext';
 import { ChevronLeft, ExternalLink, TrendingUp, DollarSign, Clock, Bookmark, Save, X } from 'lucide-react-native';
 import { OFFLINE_CAREER_DATA } from '../data/CareerData';
+import { track, EVENTS } from '../utils/analytics';
 
 export default function DamageReportScreen({ route, navigation, saveMission, savedMissions, deleteMission, saveScenario, userProfile }) {
     const { theme } = useTheme();
@@ -48,6 +49,13 @@ export default function DamageReportScreen({ route, navigation, saveMission, sav
 
     useEffect(() => {
         fetchCareerData();
+
+        // Track cost analysis view
+        track(EVENTS.COST_ANALYSIS_VIEWED, {
+            school_name: school?.school_name,
+            tier: school?.ranking,
+            annual_cost: pricePerYear,
+        });
     }, []);
 
     const fetchCareerData = async () => {

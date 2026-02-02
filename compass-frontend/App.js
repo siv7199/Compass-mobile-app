@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,6 +7,9 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerRootComponent } from 'expo';
 import { Home, Briefcase, Compass, User } from 'lucide-react-native';
+
+// Analytics
+import { initAnalytics, identify, track, EVENTS } from './src/utils/analytics';
 
 // Screens - New Onboarding Flow
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -65,6 +68,11 @@ function App() {
 
   // Saved Zero-Day simulations
   const [savedSimulations, setSavedSimulations] = useState([]);
+
+  // Initialize analytics on app mount
+  useEffect(() => {
+    initAnalytics();
+  }, []);
 
   const saveSimulation = (simulation) => {
     const simWithId = {
@@ -135,6 +143,17 @@ function App() {
   // Handle user profile (name, age, etc.) completion
   const handleUserInfoComplete = (info) => {
     setUserInfo(info); // Initial setup
+
+    // Identify user in analytics
+    const userId = info.email || info.username || `user_${Date.now()}`;
+    identify(userId, {
+      name: info.name,
+      email: info.email,
+      username: info.username,
+      age: info.age,
+    });
+    track(EVENTS.USER_PROFILE_CREATED, { has_email: !!info.email });
+
     setAppState('modeSelection');
   };
 
@@ -154,6 +173,15 @@ function App() {
   // Handle onboarding (chatbot) completion
   const handleOnboardingComplete = (userData) => {
     setUserProfile(userData);
+
+    // Track onboarding completion
+    track(EVENTS.ONBOARDING_COMPLETED, {
+      has_gpa: !!userData.gpa,
+      has_sat: !!userData.sat,
+      has_career: !!userData.career,
+      has_budget: !!userData.budget,
+    });
+
     setAppState('main');
   };
 

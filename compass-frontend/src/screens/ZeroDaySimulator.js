@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { ChevronLeft, Calendar, TrendingUp, Trophy, FlaskConical, DollarSign, Bookmark } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
+import { track, EVENTS } from '../utils/analytics';
 
 // Loan Constants (Federal Direct Loans 2024-2025)
 const LOAN_DATA = {
@@ -176,7 +177,19 @@ export default function ZeroDaySimulator({ navigation, route, saveSimulation, sa
             });
 
             if (newId) {
-                // setLocalSavedId(newId); // Removed to rely on prop updates
+                // Track the simulation run
+                track(EVENTS.ZERO_DAY_SIMULATOR_RUN, {
+                    school_name: school?.school_name,
+                    career_name: resolvedCareerName,
+                    starting_salary: effectiveSalary,
+                    salary_tier: useSalary75th ? '75th' : 'Median',
+                    monthly_add_on: monthlyAddOn,
+                    principal_reduction: principalReduction,
+                    total_debt: adjustedDebt,
+                    projected_debt_free_date: formatDate(debtFreeData.date),
+                    debt_free_months: debtFreeData.months,
+                });
+
                 Alert.alert('Saved!', 'Your simulation has been saved.');
             }
         }

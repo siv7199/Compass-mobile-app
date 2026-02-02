@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join the Waitlist - Compass</title>
+    <meta name="description"
+        content="Be the first to access Compass - the college planning app that simulates your financial future. Join our waitlist for early access.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="waitlist.css">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <img src="logo.png" alt="Compass Logo" class="logo-img">
+                <span class="logo-text">Compass</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="index.html#how-it-works">How It Works</a>
+                <a href="index.html#faq">FAQ</a>
+                <a href="waitlist.html" class="btn btn-primary">Join Waitlist</a>
+            </div>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Waitlist Hero -->
+    <section class="waitlist-hero">
+        <div class="waitlist-container">
+            <div class="waitlist-content">
+                <div class="waitlist-badge">🚀 Early Access</div>
+                <h1>Get Early Access to <span class="highlight">Compass</span></h1>
+                <p class="waitlist-subtitle">
+                    Join thousands of students who want to make smarter college decisions.
+                    Be the first to know when we launch and get exclusive early access.
+                </p>
+
+                <!-- Waitlist Form -->
+                <form class="waitlist-form" id="waitlistForm">
+                    <div class="form-group">
+                        <label for="name">Your Name</label>
+                        <input type="text" id="name" name="name" placeholder="Enter your name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="role">I am a...</label>
+                        <select id="role" name="role" required>
+                            <option value="" disabled selected>Select your role</option>
+                            <option value="student">High School Student</option>
+                            <option value="parent">Parent / Guardian</option>
+                            <option value="counselor">School Counselor</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="grade">Current Grade (if student)</label>
+                        <select id="grade" name="grade">
+                            <option value="" disabled selected>Select your grade</option>
+                            <option value="freshman">Freshman (9th)</option>
+                            <option value="sophomore">Sophomore (10th)</option>
+                            <option value="junior">Junior (11th)</option>
+                            <option value="senior">Senior (12th)</option>
+                            <option value="na">N/A</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg btn-full">
+                        Join the Waitlist <span class="arrow">→</span>
+                    </button>
+                    <p class="form-note">We respect your privacy. Unsubscribe at any time.</p>
+                </form>
+            </div>
+
+            <!-- Side Visual -->
+            <div class="waitlist-visual">
+                <div class="visual-card">
+                    <div class="visual-header">
+                        <span class="visual-icon">✉️</span>
+                        <span class="visual-title">What you'll get</span>
+                    </div>
+                    <ul class="benefits-list">
+                        <li>
+                            <span class="check">✓</span>
+                            <span>Early access before public launch</span>
+                        </li>
+                        <li>
+                            <span class="check">✓</span>
+                            <span>Exclusive tips on college planning</span>
+                        </li>
+                        <li>
+                            <span class="check">✓</span>
+                            <span>Behind-the-scenes updates on new features</span>
+                        </li>
+                        <li>
+                            <span class="check">✓</span>
+                            <span>Invites to beta testing sessions</span>
+                        </li>
+                        <li>
+                            <span class="check">✓</span>
+                            <span>Priority support when we launch</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="stat-cards">
+                    <div class="waitlist-stat">
+                        <span class="stat-number">1,000+</span>
+                        <span class="stat-label">Colleges in Database</span>
+                    </div>
+                    <div class="waitlist-stat">
+                        <span class="stat-number">40+</span>
+                        <span class="stat-label">Career Paths</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content">
+            <div class="modal-icon">🎉</div>
+            <h2>You're on the list!</h2>
+            <p>Thanks for joining the Compass waitlist. We'll be in touch soon with updates and early access
+                information.</p>
+            <button class="btn btn-primary" onclick="closeModal()">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="logo.png" alt="Compass Logo" class="footer-logo">
+                    <span class="logo-text">Compass</span>
+                    <p>Your path to the right college.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="index.html#features">Features</a>
+                    <a href="index.html#how-it-works">How It Works</a>
+                    <a href="index.html#faq">FAQ</a>
+                    <a href="waitlist.html">Waitlist</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Compass. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    <script>
+        // Waitlist form handler
+        document.getElementById('waitlistForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                role: document.getElementById('role').value,
+                grade: document.getElementById('grade').value
+            };
+
+            // In production, send formData to your backend/email service
+            console.log('Waitlist submission:', formData);
+
+            // Show success modal
+            document.getElementById('successModal').classList.add('active');
+
+            // Reset form
+            this.reset();
+        });
+
+        function closeModal() {
+            document.getElementById('successModal').classList.remove('active');
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('successModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+
+</html>
