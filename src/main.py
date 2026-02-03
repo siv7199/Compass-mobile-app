@@ -6,6 +6,8 @@ import compass_logic
 import bls_service
 import logging
 import os
+import hashlib
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -249,6 +251,81 @@ def ai_chat(request: ChatRequest):
     except Exception as e:
         logging.error(f"Chat error: {e}")
         return ChatResponse(reply="I'm having trouble connecting. Please try again.")
+
+# =====================
+# MAILCHIMP SUBSCRIBE
+# =====================
+
+class SubscribeRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    role: Optional[str] = None
+    grade: Optional[str] = None
+
+class SubscribeResponse(BaseModel):
+    success: bool
+    message: str
+
+@app.post("/api/subscribe", response_model=SubscribeResponse)
+def subscribe_to_waitlist(request: SubscribeRequest):
+    """Add subscriber to Mailchimp waitlist"""
+    logging.info(f"Subscribe request: {request.email}")
+    
+    # Get Mailchimp credentials from environment
+    api_key = os.getenv("MAILCHIMP_API_KEY")
+    audience_id = os.getenv("MAILCHIMP_AUDIENCE_ID")
+    
+    if not api_key or not audience_id:
+        logging.error("Mailchimp credentials not configured")
+        return SubscribeResponse(success=False, message="Email service not configured")
+    
+    # Extract data center from API key (e.g., "us2" from "xxx-us2")
+    dc = api_key.split("-")[-1]
+    
+    # Mailchimp API endpoint
+    url = f"https://{dc}.api.mailchimp.com/3.0/lists/{audience_id}/members"
+    
+    # Build subscriber data
+    subscriber_data = {
+        "email_address": request.email,
+        "status": "subscribed",
+        "merge_fields": {}
+    }
+    
+    # Add optional fields
+    if request.name:
+        # Split name into first/last for Mailchimp
+        name_parts = request.name.split(" ", 1)
+        subscriber_data["merge_fields"]["FNAME"] = name_parts[0]
+        if len(name_parts) > 1:
+            subscriber_data["merge_fields"]["LNAME"] = name_parts[1]
+    
+    if request.role:
+        subscriber_data["merge_fields"]["ROLE"] = request.role
+    
+    if request.grade:
+        subscriber_data["merge_fields"]["GRADE"] = request.grade
+    
+    try:
+        response = requests.post(
+            url,
+            json=subscriber_data,
+            auth=("anystring", api_key),
+            timeout=10
+        )
+        
+        if response.status_code in [200, 201]:
+            logging.info(f"Successfully subscribed: {request.email}")
+            return SubscribeResponse(success=True, message="Successfully joined waitlist!")
+        elif response.status_code == 400 and "already a list member" in response.text.lower():
+            return SubscribeResponse(success=True, message="You're already on the waitlist!")
+        else:
+            logging.error(f"Mailchimp error: {response.status_code} - {response.text}")
+            return SubscribeResponse(success=False, message="Failed to join waitlist. Please try again.")
+            
+    except Exception as e:
+        logging.error(f"Subscribe error: {e}")
+        return SubscribeResponse(success=False, message="Failed to join waitlist. Please try again.")
 
 if __name__ == "__main__":
     import uvicorn

@@ -43,21 +43,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Form submission handler (placeholder - can be connected to backend)
+    // Form submission handler - connects to Mailchimp via backend
     const signupForms = document.querySelectorAll('.signup-form');
 
     signupForms.forEach(form => {
-        form.addEventListener('submit', function (e) {
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
 
             const emailInput = form.querySelector('input[type="email"]');
+            const submitBtn = form.querySelector('button[type="submit"]');
             const email = emailInput.value;
 
             if (email) {
-                // For now, just show a success message
-                // In production, this would send to a backend/email service
-                alert('Thanks for joining the waitlist! We\'ll be in touch soon.');
-                emailInput.value = '';
+                // Disable button and show loading state
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Joining...';
+
+                try {
+                    const response = await fetch('https://compass-api-ilpt.onrender.com/api/subscribe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email: email })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert(data.message || 'Thanks for joining the waitlist!');
+                        emailInput.value = '';
+                    } else {
+                        alert(data.message || 'Something went wrong. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Subscribe error:', error);
+                    alert('Failed to connect. Please try again later.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
             }
         });
     });
