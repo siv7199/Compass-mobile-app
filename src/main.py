@@ -259,6 +259,7 @@ def ai_chat(request: ChatRequest):
 class SubscribeRequest(BaseModel):
     email: str
     name: Optional[str] = None
+    phone: Optional[str] = None
     role: Optional[str] = None
     grade: Optional[str] = None
 
@@ -299,6 +300,9 @@ def subscribe_to_waitlist(request: SubscribeRequest):
         subscriber_data["merge_fields"]["FNAME"] = name_parts[0]
         if len(name_parts) > 1:
             subscriber_data["merge_fields"]["LNAME"] = name_parts[1]
+    
+    if request.phone:
+        subscriber_data["merge_fields"]["PHONE"] = request.phone
     
     if request.role:
         subscriber_data["merge_fields"]["ROLE"] = request.role
