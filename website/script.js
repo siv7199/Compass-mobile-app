@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 submitBtn.textContent = 'Joining...';
 
                 try {
-                    const response = await fetch('https://compass-api-ilpt.onrender.com/api/subscribe', {
+                    const response = await fetch('https://compass-backend-93ls.onrender.com/api/subscribe', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
