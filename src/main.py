@@ -318,6 +318,17 @@ def subscribe_to_waitlist(request: SubscribeRequest):
             timeout=10
         )
         
+        # If failed and we had a phone number, try again without it (common failure point)
+        if response.status_code == 400 and request.phone and "merge fields" in response.text.lower():
+            logging.warning(f"Mailchimp rejected data with phone. Retrying without phone. Error: {response.text}")
+            del subscriber_data["merge_fields"]["PHONE"]
+            response = requests.post(
+                url,
+                json=subscriber_data,
+                auth=("anystring", api_key),
+                timeout=10
+            ) 
+        
         if response.status_code in [200, 201]:
             logging.info(f"Successfully subscribed: {request.email}")
             return SubscribeResponse(success=True, message="Successfully joined waitlist!")
