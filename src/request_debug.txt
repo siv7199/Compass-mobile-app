@@ -6,3 +6,5 @@ Request: gpa=3.5 sat=1350 budget=30000 major='17-2051' priorities=['research', '
 Results found: 50
 Request: gpa=4.0 sat=1600 budget=30000 major='17-2051' priorities=[] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
 Results found: 50
+Request: gpa=4.0 sat=1600 budget=30000 major='17-2141' priorities=['greek'] priorityWeights={'research': 8, 'diversity': 7, 'sports': 5, 'greek': 4, 'food': 3}
+Results found: 50
